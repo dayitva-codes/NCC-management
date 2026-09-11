@@ -1,6 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -8,8 +7,7 @@ from app.db.base import Base
 from app.db.seed import seed
 from app.db.session import SessionLocal, engine
 
-# Import all models so Base knows about every table before create_all runs.
-import app.models  # noqa: F401
+import app.models
 
 app = FastAPI(title="NCC Battalion Management System", version="1.0.0")
 

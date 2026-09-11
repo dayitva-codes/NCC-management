@@ -16,6 +16,31 @@ def register(data: CadetRegister, db: Session = Depends(get_db)):
     return cadet_service.register_cadet(db, data)
 
 
+@router.get("", response_model=list[CadetOut])
+@router.get("/", response_model=list[CadetOut])
+def list_cadets(
+    college_id: int | None = None,
+    wing: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = db.query(Cadet)
+    # If cadet, only see self
+    if current_user.role.value == "cadet":
+        query = query.filter(Cadet.user_id == current_user.id)
+    # If mentor with institute scope, filter by mentor's college
+    elif current_user.role.value == "mentor":
+        mentor = current_user.mentor_profile
+        if mentor and mentor.college_id and mentor.scope_level.value == "institute":
+            query = query.filter(Cadet.college_id == mentor.college_id)
+    
+    if college_id:
+        query = query.filter(Cadet.college_id == college_id)
+    if wing:
+        query = query.filter(Cadet.wing == wing)
+    return query.all()
+
+
 @router.get("/me", response_model=CadetOut)
 def get_my_profile(
     current_user: User = Depends(require_role("cadet")), db: Session = Depends(get_db)
@@ -37,3 +62,4 @@ def get_cadet(cadet_id: int, db: Session = Depends(get_db), _=Depends(get_curren
 @router.get("/{cadet_id}/scores", response_model=list[CadetScoreSummary])
 def get_cadet_scores(cadet_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     return evaluation_service.get_cadet_score_summary(db, cadet_id)
+

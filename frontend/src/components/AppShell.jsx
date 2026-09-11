@@ -1,107 +1,142 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ConfigBar from './ConfigBar';
-
-const NAV_BY_ROLE = {
-  admin: [
-    { to: '/admin', label: 'Command Setup', icon: '⚡', end: true },
-    { to: '/leaderboard', label: 'Live Leaderboard', icon: '🏆' },
-  ],
-  mentor: [
-    { to: '/mentor', label: 'Cadet Evaluation Terminal', icon: '🎯', end: true },
-    { to: '/leaderboard', label: 'Live Leaderboard', icon: '🏆' },
-  ],
-  cadet: [
-    { to: '/cadet', label: 'Cadet Dossier & AI', icon: '👤', end: true },
-    { to: '/leaderboard', label: 'Live Leaderboard', icon: '🏆' },
-  ],
-};
+import { getNavigationForRole } from '../config/navigationConfig';
+import TopHeader from './TopHeader';
+import { NccCrest, NccRibbonBar } from './NccLogo';
 
 export default function AppShell() {
   const { user, logout } = useAuth();
-  const links = NAV_BY_ROLE[user?.role] || [];
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const roleLabels = {
-    admin: { name: 'HQ COMMANDER', color: 'var(--neon-cyan)', bg: 'rgba(0, 240, 255, 0.15)' },
-    mentor: { name: 'BATTALION MENTOR', color: 'var(--gold)', bg: 'rgba(255, 184, 0, 0.15)' },
-    cadet: { name: 'ACTIVE CADET', color: 'var(--neon-emerald)', bg: 'rgba(0, 255, 170, 0.15)' },
+  const roleMeta = {
+    admin: {
+      name: 'COMMANDING OFFICER (CO)',
+      badge: 'badge-success',
+      roleColor: '#059669',
+      title: 'Battalion Commander',
+      icon: '⭐',
+      unitScope: 'HQ Battalion Command • All Units',
+    },
+    mentor: {
+      name: 'ASSOCIATE NCC OFFICER (ANO)',
+      badge: 'badge-saffron',
+      roleColor: '#D97706',
+      title: 'Company Commander / Evaluator',
+      icon: '🎖️',
+      unitScope: 'Assigned Company • Cadet Evaluator',
+    },
+    cadet: {
+      name: 'ACTIVE CADET',
+      badge: 'badge-olive',
+      roleColor: '#3A5A40',
+      title: 'Rank: Senior Under Officer',
+      icon: '👤',
+      unitScope: 'Govt Girls PG College • 3 MP Bn',
+    },
+  }[user?.role] || {
+    name: 'GUEST OBSERVER',
+    badge: 'badge-navy',
+    roleColor: '#475569',
+    title: 'Guest',
+    icon: '👤',
+    unitScope: 'Observer Clearance',
   };
 
-  const roleMeta = roleLabels[user?.role] || { name: 'GUEST', color: 'var(--paper-dim)', bg: 'rgba(255,255,255,0.05)' };
+  const navGroups = getNavigationForRole(user?.role);
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-lockup">
-            <div className="brand-mark">NCC</div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <h1 style={{ margin: 0, fontSize: 18, letterSpacing: '0.06em' }}>COMMAND OS</h1>
-              <span style={{ fontSize: 10, color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)' }}>v2.4.0 · SUPABASE</span>
+      {/* Mobile Backdrop */}
+      {mobileNavOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(11, 29, 58, 0.5)',
+            zIndex: 99,
+          }}
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-brand" style={{ gap: 14 }}>
+            <NccCrest size={44} />
+            <div className="brand-title">
+              <h1 style={{ letterSpacing: '0.06em' }}>NCC COMMAND</h1>
+              <span style={{ color: 'var(--text-sidebar)', fontWeight: 600 }}>National Cadet Corps</span>
             </div>
           </div>
-          
-          <div style={{
-            marginTop: 14,
-            padding: '4px 10px',
-            background: roleMeta.bg,
-            border: `1px solid ${roleMeta.color}`,
-            borderRadius: 4,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: roleMeta.color, boxShadow: `0 0 6px ${roleMeta.color}` }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              fontSize: 11,
-              color: roleMeta.color,
-              letterSpacing: '0.08em'
-            }}>
-              {roleMeta.name}
-            </span>
+          <div className="motto-bar" style={{ marginTop: 12 }}>
+            <span>एकता और अनुशासन</span>
+            <span>UNITY & DISCIPLINE</span>
           </div>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-          {links.map(link => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) => 'nav-link' + (isActive ? ' active' : '')}
-              style={{ display: 'flex', alignItems: 'center', gap: 10 }}
-            >
-              <span style={{ fontSize: 14 }}>{link.icon}</span>
-              <span>{link.label}</span>
-            </NavLink>
+        {/* Dynamic Role & Clearance Badge */}
+        <div className="user-clearance-card">
+          <div className="clearance-avatar" style={{ border: `2px solid ${roleMeta.roleColor}` }}>
+            {roleMeta.icon}
+          </div>
+          <div className="clearance-details">
+            <div className={`clearance-role-badge ${roleMeta.badge}`}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: roleMeta.roleColor }} />
+              <span>{roleMeta.name}</span>
+            </div>
+            <div className="clearance-email" title={user?.email}>{user?.email || 'officer@ncc.local'}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+              {roleMeta.unitScope}
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Role-Filtered Navigation Groups */}
+        <nav className="sidebar-nav">
+          {navGroups.map((group, gIdx) => (
+            <div key={gIdx}>
+              <div className="nav-group-label">
+                <span>{group.group}</span>
+                {group.badge && <span className="nav-tag">{group.badge}</span>}
+              </div>
+              <div className="nav-links-list">
+                {group.items.map((item, iIdx) => (
+                  <NavLink
+                    key={iIdx}
+                    to={item.path}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
-        <div className="nav-footer">
-          <div style={{
-            background: 'rgba(0, 0, 0, 0.3)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            padding: '8px 10px',
-            marginBottom: 10
-          }}>
-            <div style={{ fontSize: 10, color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Authenticated User</div>
-            <div style={{ fontSize: 12, color: 'var(--paper-bright)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.email}
-            </div>
-          </div>
-          <button className="logout-btn" onClick={logout} style={{ width: '100%' }}>
-            ⏻ Terminate Session
+        {/* Sidebar Footer */}
+        <div className="sidebar-footer">
+          <button type="button" className="logout-btn" onClick={logout}>
+            <span>🚪</span>
+            <span>Sign Out from Station</span>
           </button>
         </div>
       </aside>
 
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <ConfigBar />
+      {/* Main Content Area */}
+      <div className="main-wrapper">
+        <TopHeader
+          onSearch={setSearchQuery}
+          onToggleMobileNav={() => setMobileNavOpen(!mobileNavOpen)}
+        />
         <main className="main-content">
-          <Outlet />
+          <Outlet context={{ searchQuery }} />
         </main>
       </div>
     </div>

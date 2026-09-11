@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ErrorBanner, TagGuide, PasswordStrengthMeter } from '../components/Form';
-import ConfigBar from '../components/ConfigBar';
+import { ErrorBanner } from '../components/Form';
+import { NccCrest, NccRibbonBar } from '../components/NccLogo';
 
 export default function Login() {
   const { login, googleLogin, googleEnabled } = useAuth();
@@ -21,14 +21,14 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (password.length < 6) {
-      setError('Password must be at least 6 characters for login authentication.');
+      setError('Password must be at least 6 characters for station access.');
       return;
     }
     setError('');
     setBusy(true);
     try {
-      const user = await login(email, password);
-      navigate(`/${user.role}`, { replace: true });
+      await login(email, password);
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -49,104 +49,139 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page">
-      <ConfigBar />
+    <div>
+      <div className="gov-top-bar">
+        <div className="gov-top-left">
+          <span className="gov-emblem-icon">🇮🇳</span>
+          <span className="gov-text-hi">भारत सरकार</span>
+          <span className="gov-separator">|</span>
+          <span className="gov-text-en">GOVERNMENT OF INDIA</span>
+          <span className="gov-separator">•</span>
+          <span className="gov-text-dept">रक्षा मंत्रालय / MINISTRY OF DEFENCE</span>
+        </div>
+        <div className="gov-top-right">
+          <span className="ncc-portal-motto">
+            <span className="motto-hi">एकता और अनुशासन</span>
+            <span className="motto-sep">•</span>
+            <span className="motto-en">UNITY AND DISCIPLINE</span>
+          </span>
+        </div>
+      </div>
+      <div className="tricolor-ribbon" />
+      <NccRibbonBar height={3} />
       <div className="login-shell">
         <div className="login-card">
-          <div className="eyebrow">
-            <span className="live-pulse"></span>
-            <span>NCC CYBER-COMMAND GATEWAY</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <NccCrest size={56} />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--ncc-gold)', textTransform: 'uppercase' }}>
+                DIRECTORATE GENERAL NCC
+              </div>
+              <h2 style={{ fontSize: 19, color: 'var(--navy-900)' }}>Battalion Command Portal</h2>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+                Ministry of Defence • Govt. of India
+              </div>
+            </div>
           </div>
-          <h1>Command Access</h1>
-          <p className="sub">Authenticate to access your battalion management console.</p>
+
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+            Authenticate with your authorized service credentials to access battalion evaluation, muster rolls, and command stations.
+          </p>
 
           <ErrorBanner message={error} />
 
+          {/* Quick Demo Access Bar */}
           <div className="quick-fill-bar">
-            <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>⚡ QUICK LOGIN:</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}>DEMO ROLES:</span>
             <button
               type="button"
               className="quick-fill-btn"
               onClick={() => quickFill('admin@ncc.local', 'admin123')}
             >
-              🛡️ Admin
+              ⭐ Commanding Officer
             </button>
             <button
               type="button"
               className="quick-fill-btn"
               onClick={() => quickFill('mentor1@test.com', 'password123')}
             >
-              🎖️ Mentor
+              🎖️ ANO / Evaluator
             </button>
             <button
               type="button"
               className="quick-fill-btn"
               onClick={() => quickFill('cadet1@test.com', 'password123')}
             >
-              🎯 Cadet
+              👤 Active Cadet
             </button>
           </div>
 
           <form onSubmit={handleSubmit}>
             {googleEnabled && (
               <>
-                <button type="button" className="google-btn" onClick={handleGoogleLogin} aria-label="Continue with Google">
-                  <span className="google-g">G</span>
-                  Continue with Google Auth
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={handleGoogleLogin}
+                  style={{ width: '100%', marginBottom: 16, height: 42 }}
+                >
+                  <span style={{ fontWeight: 700, color: '#DB4437' }}>G</span>
+                  Continue with Google Workspace
                 </button>
-                <div className="auth-divider"><span>or use credentials</span></div>
+                <div style={{ textAlign: 'center', marginBottom: 16, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  — Or Authenticate with Service ID —
+                </div>
               </>
             )}
 
             <div className="field">
               <div className="field-header">
-                <label htmlFor="email">Email Address</label>
-                <span className="guide-pill">IDENTITY</span>
+                <label htmlFor="email">Service / Registered Email</label>
               </div>
               <input
                 id="email"
+                type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                type="email"
-                placeholder="name@battalion.ncc"
+                placeholder="officer@unit.ncc or cadet@college.edu"
                 required
               />
             </div>
 
             <div className="field">
               <div className="field-header">
-                <label htmlFor="password">Password</label>
-                <span className="guide-pill">SECURITY KEY</span>
+                <label htmlFor="password">Security Password</label>
               </div>
               <input
                 id="password"
+                type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                type="password"
                 placeholder="••••••••"
                 required
               />
-              <PasswordStrengthMeter password={password} />
             </div>
 
-            <button className="primary" style={{ width: '100%', marginTop: 14 }} disabled={busy}>
-              {busy ? 'AUTHENTICATING ENCRYPTED SESSION…' : '⚡ SIGN IN TO COMMAND'}
+            <button className="primary" style={{ width: '100%', marginTop: 8, height: 42 }} disabled={busy}>
+              {busy ? 'AUTHENTICATING SERVICE CREDENTIALS…' : 'SIGN IN TO COMMAND STATION'}
             </button>
           </form>
 
-          <TagGuide title="System Access Roles" badge="GUIDE">
-            • <strong>Admin</strong>: Create battalions/colleges, verify mentors.<br/>
-            • <strong>Mentor</strong>: Evaluate cadets on 9 criteria (requires admin verification).<br/>
-            • <strong>Cadet</strong>: Track real-time ranking, scores, and AI performance insights.
-          </TagGuide>
-
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between' }}>
-            <a href="/register/cadet" style={{ fontSize: 13, color: 'var(--cyan)', textDecoration: 'none', fontWeight: 600 }}>
-              + Register as Cadet →
-            </a>
-            <a href="/register/mentor" style={{ fontSize: 13, color: 'var(--gold)', textDecoration: 'none', fontWeight: 600 }}>
-              + Register as Mentor →
-            </a>
+          <div style={{
+            marginTop: 24,
+            paddingTop: 16,
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: 12,
+          }}>
+            <Link to="/register/cadet" style={{ color: 'var(--navy-900)', fontWeight: 600 }}>
+              + Cadet Enrollment
+            </Link>
+            <Link to="/register/mentor" style={{ color: 'var(--olive-700)', fontWeight: 600 }}>
+              + ANO / Officer Register
+            </Link>
           </div>
         </div>
       </div>

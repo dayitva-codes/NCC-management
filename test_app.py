@@ -1,4 +1,7 @@
-import sys
+import os
+os.environ["TESTING"] = "1"
+os.environ["DATABASE_URL"] = "sqlite:///./test_ncc.db"
+
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.base import Base
@@ -134,6 +137,14 @@ def test_full_system_flow():
     print("\n==========================================")
     print("ALL 10 VERIFICATION TESTS PASSED PERFECTLY!")
     print("==========================================")
+    
+    # Clean up test database
+    engine.dispose()
+    if os.path.exists("test_ncc.db"):
+        try:
+            os.remove("test_ncc.db")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     test_full_system_flow()

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Field, SelectField, Panel, ErrorBanner, SuccessBanner, TagGuide, PasswordStrengthMeter } from '../components/Form';
-import ConfigBar from '../components/ConfigBar';
+import { NccCrest, NccRibbonBar } from '../components/NccLogo';
 
 export default function RegisterMentor() {
   const navigate = useNavigate();
@@ -17,19 +17,26 @@ export default function RegisterMentor() {
     scope_level: 'institute', college_id: '', battalion_id: '',
   });
 
-  useEffect(() => { api.listBattalions().then(setBattalions).catch(() => {}); }, []);
   useEffect(() => {
-    if (form.battalion_id) api.listColleges(form.battalion_id).then(setColleges).catch(() => {});
+    api.listBattalions().then(setBattalions).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (form.battalion_id) {
+      api.listColleges(form.battalion_id).then(setColleges).catch(() => {});
+    }
   }, [form.battalion_id]);
 
-  function update(key, value) { setForm(prev => ({ ...prev, [key]: value })); }
+  function update(key, value) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
 
   function autoFillSample() {
     const randomId = Math.floor(100 + Math.random() * 900);
     setForm({
-      email: `mentor_${randomId}@ncc.local`,
+      email: `ano_${randomId}@ncc.local`,
       password: 'MentorPassword123!',
-      enrollment_number: `MENTOR${randomId}`,
+      enrollment_number: `ANO-MP-${randomId}`,
       scope_level: 'institute',
       battalion_id: battalions[0]?.id ? String(battalions[0].id) : '1',
       college_id: colleges[0]?.id ? String(colleges[0].id) : '1',
@@ -42,17 +49,17 @@ export default function RegisterMentor() {
     setError(''); setSuccess('');
 
     if (form.password.length < 8) {
-      setError('⚠️ Security Rule Violation: Password must be at least 8 characters long.');
+      setError('Security Rule Violation: Password must be at least 8 characters long.');
       return;
     }
 
     if (form.scope_level === 'institute' && !form.college_id) {
-      setError('⚠️ Scope Rule Violation: Institute-level mentors must select an attached college.');
+      setError('Scope Rule Violation: Institute-level mentors must select an attached college.');
       return;
     }
 
     if (form.scope_level === 'multi_college' && !form.battalion_id) {
-      setError('⚠️ Scope Rule Violation: Multi-college mentors must select an attached battalion.');
+      setError('Scope Rule Violation: Multi-college mentors must select an attached battalion.');
       return;
     }
 
@@ -68,7 +75,7 @@ export default function RegisterMentor() {
       else payload.battalion_id = parseInt(form.battalion_id);
 
       const res = await api.registerMentor(payload);
-      setSuccess(`Mentor registered with User ID #${res.user_id || res.id}. An Admin must verify your account before you can evaluate cadets.`);
+      setSuccess(`Officer registered with User ID #${res.user_id || res.id}. Awaiting Commanding Officer verification before score submissions are enabled.`);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
       setError(err.message);
@@ -79,36 +86,60 @@ export default function RegisterMentor() {
 
   return (
     <div>
-      <ConfigBar />
-      <div style={{ maxWidth: 580, margin: '36px auto', padding: '0 16px' }}>
-        <div className="page-header">
-          <div className="eyebrow">
-            <span className="live-pulse"></span>
-            <span>OFFICER & MENTOR REGISTRATION</span>
+      <div className="gov-top-bar">
+        <div className="gov-top-left">
+          <span className="gov-emblem-icon">🇮🇳</span>
+          <span className="gov-text-hi">भारत सरकार</span>
+          <span className="gov-separator">|</span>
+          <span className="gov-text-en">GOVERNMENT OF INDIA</span>
+          <span className="gov-separator">•</span>
+          <span className="gov-text-dept">रक्षा मंत्रालय / MINISTRY OF DEFENCE</span>
+        </div>
+        <div className="gov-top-right">
+          <span className="ncc-portal-motto">
+            <span className="motto-hi">एकता और अनुशासन</span>
+            <span className="motto-sep">•</span>
+            <span className="motto-en">UNITY AND DISCIPLINE</span>
+          </span>
+        </div>
+      </div>
+      <div className="tricolor-ribbon" />
+      <NccRibbonBar height={3} />
+      <div style={{ maxWidth: 660, margin: '36px auto', padding: '0 20px' }}>
+        <div className="page-header" style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <NccCrest size={60} showMotto={true} />
           </div>
-          <h2>Mentor Registration</h2>
-          <p>Register as an NCC ANO / PI Staff / Evaluator to assess cadets and generate performance reports.</p>
+          <div className="page-eyebrow" style={{ justifyContent: 'center' }}>
+            <span className="dot" />
+            <span>OFFICER & EVALUATION CADRE REGISTRATION</span>
+          </div>
+          <h2>ANO & Officer Enrollment</h2>
+          <p style={{ margin: '0 auto' }}>
+            Register as an Associate NCC Officer (ANO) or PI Staff evaluator to record parade scores, evaluate drill vectors, and oversee collegiate units.
+          </p>
         </div>
 
-        <div className="quick-fill-bar">
-          <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>⚡ FAST TESTING:</span>
+        <div className="quick-fill-bar" style={{ justifyContent: 'center' }}>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}>DEMO FILL:</span>
           <button type="button" className="quick-fill-btn" onClick={autoFillSample}>
-            Fill Sample Mentor Details
+            ⚡ Auto-fill Sample Officer Data
           </button>
         </div>
 
         <ErrorBanner message={error} />
         <SuccessBanner message={success} />
 
-        <TagGuide title="Admin Verification Requirement" badge="SECURITY POLICY">
-          Newly registered mentors start in an <strong>Unverified</strong> state. An <strong>Admin</strong> must approve your User ID from the Command Setup portal before score submissions are permitted.
-        </TagGuide>
+        <TagGuide
+          tags={['Command Clearance Policy', 'Admin Verification Needed', 'Evaluator Scope']}
+          guide="Newly registered ANOs start in an Unverified status. The Commanding Officer must verify your User ID from the Administration station before evaluations are permitted."
+        />
 
         <form onSubmit={handleSubmit}>
-          <Panel title="1. Account Credentials" guideTag="MIN 8 CHARACTERS">
+          <Panel title="1. Account Credentials" guideTag="SECURITY">
             <div className="field-row">
               <Field
-                label="Officer Email"
+                label="Officer Email Address"
                 type="email"
                 required
                 placeholder="officer@unit.ncc"
@@ -127,11 +158,11 @@ export default function RegisterMentor() {
             <PasswordStrengthMeter password={form.password} />
           </Panel>
 
-          <Panel title="2. Official Scope & Placement" guideTag="AUTHORIZATION LEVEL">
+          <Panel title="2. Service Scope & Placement" guideTag="AUTHORIZATION">
             <Field
-              label="Mentor Enrollment / Service ID"
+              label="Service / Commission ID"
               required
-              placeholder="e.g. MENT001 or ANO/2026/09"
+              placeholder="e.g. ANO-MP-2026-09"
               value={form.enrollment_number}
               onChange={e => update('enrollment_number', e.target.value.toUpperCase())}
             />
@@ -139,30 +170,35 @@ export default function RegisterMentor() {
             <SelectField
               label="Evaluation Scope Level"
               required
-              badge="PERMISSIONS"
               value={form.scope_level}
               onChange={e => update('scope_level', e.target.value)}
               options={[
-                { value: 'institute', label: '🏫 Institute-Level (Evaluates Cadets in 1 Specific College)' },
-                { value: 'multi_college', label: '🎖️ Multi-College / Battalion Level (Evaluates All Colleges in Battalion)' },
+                { value: 'institute', label: 'Institute-Level (Evaluates Cadets in 1 Specific College)' },
+                { value: 'multi_college', label: 'Multi-College / Battalion Level (Evaluates All Cadets in Unit)' },
               ]}
             />
 
             {form.scope_level === 'institute' ? (
               <div className="field-row">
                 <SelectField
-                  label="Battalion"
+                  label="Parent Battalion"
                   required
                   value={form.battalion_id}
                   onChange={e => update('battalion_id', e.target.value)}
-                  options={[{ value: '', label: '— Select Battalion —' }, ...battalions.map(b => ({ value: b.id, label: b.name }))]}
+                  options={[
+                    { value: '', label: '— Select Battalion —' },
+                    ...battalions.map(b => ({ value: b.id, label: b.name })),
+                  ]}
                 />
                 <SelectField
                   label="Assigned College"
                   required
                   value={form.college_id}
                   onChange={e => update('college_id', e.target.value)}
-                  options={[{ value: '', label: form.battalion_id ? '— Select College —' : '— Choose Battalion First —' }, ...colleges.map(c => ({ value: c.id, label: c.name }))]}
+                  options={[
+                    { value: '', label: form.battalion_id ? '— Select College —' : '— Choose Battalion First —' },
+                    ...colleges.map(c => ({ value: c.id, label: c.name })),
+                  ]}
                 />
               </div>
             ) : (
@@ -171,14 +207,23 @@ export default function RegisterMentor() {
                 required
                 value={form.battalion_id}
                 onChange={e => update('battalion_id', e.target.value)}
-                options={[{ value: '', label: '— Select Battalion —' }, ...battalions.map(b => ({ value: b.id, label: b.name }))]}
+                options={[
+                  { value: '', label: '— Select Battalion —' },
+                  ...battalions.map(b => ({ value: b.id, label: b.name })),
+                ]}
               />
             )}
           </Panel>
 
-          <button className="primary" style={{ width: '100%' }} disabled={busy}>
-            {busy ? 'ENROLLING MENTOR…' : '⚡ SUBMIT MENTOR REGISTRATION'}
+          <button className="primary" style={{ width: '100%', height: 44, marginBottom: 20 }} disabled={busy}>
+            {busy ? 'ENROLLING OFFICER CADRE…' : 'SUBMIT OFFICER REGISTRATION'}
           </button>
+
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <Link to="/login" style={{ fontSize: 13, color: 'var(--navy-900)', fontWeight: 600 }}>
+              Already registered? Sign in to Command Station →
+            </Link>
+          </div>
         </form>
       </div>
     </div>

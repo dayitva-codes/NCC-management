@@ -33,6 +33,19 @@ npm run dev
 
 ---
 
+## 🆕 Recent Updates (Role-Based Access Control & UI Redesign)
+
+The platform has been heavily upgraded to support dynamic, **Role-Based Access Control (RBAC)** across both frontend and backend:
+
+* **Dynamic App Shell & Navigation**: The sidebar and dashboards adapt based on the user's role (`Cadet`, `Mentor`, `Admin`).
+* **Distinct Dashboards**: Introduced tailored views (`StudentDashboard`, `MentorDashboard`, `AdminDashboard`) containing role-specific metrics and tools.
+* **Component-Level Security**: Modals and pages (e.g., `CadetProfileModal`) auto-configure as read-only, evaluation-enabled, or fully managed depending on permissions.
+* **Route Guards**: Added `PermissionGuard` to protect frontend routes and a standard `AccessRestricted` (403) page for unauthorized attempts.
+* **Backend Scoping**: API endpoints dynamically restrict queries (e.g., Mentors only see their affiliated Cadets; Admins see all).
+* **Isolated Testing environment**: Enhanced `test_app.py` utilizing isolated `test_ncc.db` to prevent developer data conflicts, executing 10 passing comprehensive e2e tests.
+
+---
+
 ## 🛡️ Limitation Rules & Validation Matrix
 
 The platform enforces strict enterprise validation rules across all inputs:

@@ -1,95 +1,124 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../api/client';
-import { Field, Panel, ErrorBanner, TagGuide } from '../components/Form';
+import { Field, SelectField, Panel, ErrorBanner } from '../components/Form';
+import CadetProfileModal from '../components/CadetProfileModal';
+import { NccCrest } from '../components/NccLogo';
 
 export default function Leaderboard() {
   const [battalionId, setBattalionId] = useState('');
+  const [battalions, setBattalions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState([]);
+  const [selectedCadet, setSelectedCadet] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  async function load() {
+  const loadLeaderboard = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.getLeaderboard(battalionId || null);
-      setRows(data);
-      setLoaded(true);
+      const data = await api.getLeaderboard(battalionId || null, 50);
+      if (Array.isArray(data)) {
+        setRows(data);
+      } else {
+        setRows([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
+  }, [battalionId]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadLeaderboard();
+    api.listBattalions().then(setBattalions).catch(() => {});
+    const handleGlobalRefresh = () => loadLeaderboard();
+    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
+    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
+  }, [loadLeaderboard]);
 
   const filteredRows = useMemo(() => {
     if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
     return rows.filter(r =>
       r.full_name?.toLowerCase().includes(q) ||
-      r.enrollment_number?.toLowerCase().includes(q) ||
-      r.college_name?.toLowerCase().includes(q)
+      r.enrollment_number?.toLowerCase().includes(q)
     );
   }, [rows, searchQuery]);
 
   const topThree = filteredRows.slice(0, 3);
 
+  function handleInspectCadet(row) {
+    setSelectedCadet({
+      id: row.cadet_id || row.id,
+      full_name: row.full_name,
+      enrollment_number: row.enrollment_number,
+      wing: row.wing || 'SW',
+      average_score: row.average_score,
+    });
+    setIsModalOpen(true);
+  }
+
   return (
     <div>
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Command Leaderboard</h2>
-          <span style={{
-            background: 'rgba(255, 184, 0, 0.12)',
-            border: '1px solid var(--gold)',
-            color: 'var(--gold)',
-            padding: '3px 10px',
-            borderRadius: '999px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.08em'
-          }}>
-            LIVE AGGREGATE
-          </span>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <NccCrest size={48} />
+          <div>
+            <div className="page-eyebrow">
+              <span className="dot" />
+              <span>BATTALION MERIT STANDINGS & COMPOSITE RANKS</span>
+            </div>
+            <h2>Command Merit Leaderboard</h2>
+            <p>
+              Real-time cadet merit rankings computed from verified ANO evaluations across drill, physical fitness, discipline, and leadership.
+            </p>
+          </div>
         </div>
-        <p style={{ marginTop: 6 }}>
-          Real-time cadet rankings computed on-the-fly from PostgreSQL database evaluations across all battalions.
-        </p>
+
+        <button
+          type="button"
+          className={`refresh-btn ${refreshing ? 'spinning' : ''}`}
+          onClick={() => { setRefreshing(true); loadLeaderboard(); }}
+          disabled={loading || refreshing}
+        >
+          <span className="refresh-icon">🔄</span>
+          <span>{refreshing ? 'Updating…' : 'Refresh Standings'}</span>
+        </button>
       </div>
 
       <ErrorBanner message={error} />
 
-      <TagGuide
-        tags={['Live PostgreSQL Compute', 'Multi-Criterion Average', 'Zero Stale Cache', 'Battalion Scoped']}
-        guide="Leaderboards update dynamically with each signed mentor evaluation. Filter by specific Battalion ID or search across any active cadet name."
-      />
-
+      {/* Filter Bar */}
       <Panel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
           <Field
-            label="Instant Cadet / College Search"
-            badge="Real-time"
-            placeholder="Search cadet name, reg. no., college..."
+            label="Instant Search Cadet"
+            placeholder="Search cadet name, reg. no..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
-          <Field
-            label="Filter by Battalion UUID"
-            badge="Optional"
-            placeholder="e.g. 5d1341a7-..."
+
+          <SelectField
+            label="Filter by Battalion"
             value={battalionId}
             onChange={e => setBattalionId(e.target.value)}
+            options={[
+              { value: '', label: '— All Battalions (Directorate Wide) —' },
+              ...battalions.map(b => ({ value: b.id, label: `${b.name} (${b.code})` })),
+            ]}
           />
+
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="primary" type="button" onClick={load} disabled={loading} style={{ flex: 1 }}>
-              {loading ? 'Refreshing…' : '⚡ Query Ranks'}
+            <button className="primary" type="button" onClick={loadLeaderboard} disabled={loading} style={{ flex: 1, height: 38 }}>
+              {loading ? 'Refreshing…' : 'Query Rankings'}
             </button>
             {battalionId && (
-              <button className="secondary" type="button" onClick={() => { setBattalionId(''); setTimeout(load, 50); }}>
+              <button className="secondary" type="button" onClick={() => setBattalionId('')} style={{ height: 38 }}>
                 Clear
               </button>
             )}
@@ -97,151 +126,135 @@ export default function Leaderboard() {
         </div>
       </Panel>
 
-      {/* Top 3 Holographic Podium Cards */}
+      {/* Top 3 Podium Cards */}
       {topThree.length >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 24 }}>
-          {topThree.map((top, idx) => {
-            const rank = idx + 1;
-            const colors = {
-              1: { border: 'var(--gold)', bg: 'rgba(255, 184, 0, 0.08)', text: 'var(--gold)', icon: '👑 GOLD', glow: '0 0 20px rgba(255, 184, 0, 0.25)' },
-              2: { border: '#C0C0C0', bg: 'rgba(192, 192, 192, 0.08)', text: '#E0E0E0', icon: '🥈 SILVER', glow: '0 0 16px rgba(192, 192, 192, 0.2)' },
-              3: { border: '#CD7F32', bg: 'rgba(205, 127, 50, 0.08)', text: '#E59866', icon: '🥉 BRONZE', glow: '0 0 16px rgba(205, 127, 50, 0.2)' }
-            }[rank];
-
-            return (
-              <div key={top.cadet_id} style={{
-                background: colors.bg,
-                border: `1px solid ${colors.border}`,
-                boxShadow: colors.glow,
-                borderRadius: 10,
-                padding: '18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    color: colors.text,
-                    letterSpacing: '0.08em'
-                  }}>
-                    {colors.icon} · #{rank}
-                  </span>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: colors.text
-                  }}>
-                    {Number(top.average_score).toFixed(2)}
-                  </span>
-                </div>
-
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--paper-bright)' }}>
-                    {top.full_name}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                    {top.enrollment_number}
-                  </div>
-                </div>
-
-                <div style={{
-                  fontSize: 11,
-                  color: 'var(--paper-dim)',
-                  borderTop: '1px solid rgba(255,255,255,0.08)',
-                  paddingTop: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <span>🏛️</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {top.college_name || 'Battalion Cadet'}
-                  </span>
-                </div>
+        <div className="podium-grid">
+          {/* Silver Rank 2 */}
+          {topThree[1] && (
+            <div className="podium-card silver">
+              <div className="podium-medal">🥈</div>
+              <span className="badge badge-navy">2ND POSITION</span>
+              <div className="podium-name">{topThree[1].full_name}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                {topThree[1].enrollment_number}
               </div>
-            );
-          })}
+              <div className="podium-score">
+                {Number(topThree[1].average_score).toFixed(2)}
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                style={{ padding: '4px 12px', fontSize: 11, marginTop: 6 }}
+                onClick={() => handleInspectCadet(topThree[1])}
+              >
+                Inspect Dossier
+              </button>
+            </div>
+          )}
+
+          {/* Gold Rank 1 */}
+          {topThree[0] && (
+            <div className="podium-card gold">
+              <div className="podium-medal">🏆</div>
+              <span className="badge badge-gold">1ST POSITION — BEST CADET</span>
+              <div className="podium-name" style={{ fontSize: 18 }}>{topThree[0].full_name}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                {topThree[0].enrollment_number}
+              </div>
+              <div className="podium-score" style={{ fontSize: 32, color: 'var(--ncc-gold)' }}>
+                {Number(topThree[0].average_score).toFixed(2)}
+              </div>
+              <button
+                type="button"
+                className="primary"
+                style={{ padding: '6px 14px', fontSize: 12, marginTop: 6 }}
+                onClick={() => handleInspectCadet(topThree[0])}
+              >
+                🎖️ Inspect Best Cadet Dossier
+              </button>
+            </div>
+          )}
+
+          {/* Bronze Rank 3 */}
+          {topThree[2] && (
+            <div className="podium-card bronze">
+              <div className="podium-medal">🥉</div>
+              <span className="badge badge-saffron">3RD POSITION</span>
+              <div className="podium-name">{topThree[2].full_name}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                {topThree[2].enrollment_number}
+              </div>
+              <div className="podium-score">
+                {Number(topThree[2].average_score).toFixed(2)}
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                style={{ padding: '4px 12px', fontSize: 11, marginTop: 6 }}
+                onClick={() => handleInspectCadet(topThree[2])}
+              >
+                Inspect Dossier
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Full Ranks Table */}
-      <Panel title={`Cadet Standings (${filteredRows.length} Cadets Listed)`}>
-        {loaded && filteredRows.length === 0 ? (
-          <div style={{
-            padding: 32,
-            textAlign: 'center',
-            color: 'var(--paper-dim)',
-            background: 'rgba(255,255,255,0.02)',
-            borderRadius: 8,
-            border: '1px dashed var(--border)'
-          }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--paper-bright)' }}>No evaluated cadets matching criteria</p>
-            <p style={{ margin: '4px 0 0', fontSize: 12 }}>Check your search filter or ensure mentors have recorded scores.</p>
+      {/* Standings Table */}
+      <Panel title={`Full Merit Standings (${filteredRows.length} Cadets Evaluated)`} guideTag="DIRECTORATE ROLL">
+        {filteredRows.length === 0 ? (
+          <div className="empty-state-card">
+            <div className="empty-state-icon">🏆</div>
+            <div className="empty-state-title">No Merit Rankings Yet</div>
+            <div className="empty-state-text">
+              Rankings are calculated automatically once Associate NCC Officers record 9-pillar evaluation scores for cadets.
+            </div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive">
             <table>
               <thead>
                 <tr>
                   <th style={{ width: 80 }}>Rank</th>
                   <th>Cadet Name</th>
                   <th>Enrollment Reg</th>
-                  <th>Affiliated College</th>
+                  <th>Wing</th>
                   <th style={{ textAlign: 'right' }}>Composite Score</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.map((r, idx) => {
-                  const displayRank = r.rank || (idx + 1);
-                  const isTop3 = displayRank <= 3;
+                  const rank = idx + 1;
+                  const score = Number(r.average_score).toFixed(2);
                   return (
-                    <tr key={r.cadet_id} style={{
-                      background: displayRank === 1 ? 'rgba(255, 184, 0, 0.04)' : undefined
-                    }}>
+                    <tr key={r.cadet_id || r.id || idx}>
                       <td>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          fontSize: 13,
-                          padding: '2px 8px',
-                          borderRadius: 4,
-                          background: displayRank === 1 ? 'rgba(255, 184, 0, 0.15)' :
-                                     displayRank === 2 ? 'rgba(192, 192, 192, 0.15)' :
-                                     displayRank === 3 ? 'rgba(205, 127, 50, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                          color: displayRank === 1 ? 'var(--gold)' :
-                                 displayRank === 2 ? '#E0E0E0' :
-                                 displayRank === 3 ? '#E59866' : 'var(--paper-dim)',
-                          border: isTop3 ? '1px solid currentColor' : 'none'
-                        }}>
-                          #{displayRank}
+                        <span className={`badge ${rank === 1 ? 'badge-gold' : rank === 2 ? 'badge-navy' : rank === 3 ? 'badge-olive' : 'badge-info'}`}>
+                          #{rank}
                         </span>
                       </td>
-                      <td style={{ fontWeight: isTop3 ? 600 : 400, color: isTop3 ? 'var(--paper-bright)' : 'var(--paper)' }}>
+                      <td style={{ fontWeight: 600, color: 'var(--navy-900)' }}>
                         {r.full_name}
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--paper-dim)' }}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
                         {r.enrollment_number}
                       </td>
-                      <td style={{ fontSize: 13, color: 'var(--paper-dim)' }}>
-                        {r.college_name || '—'}
+                      <td>
+                        <span className="badge badge-navy">{r.wing || 'SW'}</span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: Number(score) >= 8.5 ? 'var(--success)' : 'var(--olive-700)' }}>
+                        {score} / 10
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          fontSize: 14,
-                          color: Number(r.average_score) >= 8.0 ? 'var(--neon-emerald)' :
-                                 Number(r.average_score) >= 6.0 ? 'var(--gold)' : 'var(--neon-crimson)'
-                        }}>
-                          {Number(r.average_score).toFixed(2)}
-                        </span>
+                        <button
+                          type="button"
+                          className="secondary"
+                          style={{ padding: '4px 10px', fontSize: 11 }}
+                          onClick={() => handleInspectCadet(r)}
+                        >
+                          Dossier
+                        </button>
                       </td>
                     </tr>
                   );
@@ -251,6 +264,12 @@ export default function Leaderboard() {
           </div>
         )}
       </Panel>
+
+      <CadetProfileModal
+        cadet={selectedCadet}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

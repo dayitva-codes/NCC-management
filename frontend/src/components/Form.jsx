@@ -1,6 +1,28 @@
 import { useState } from 'react';
 import { setApiBase } from '../api/client';
 
+export function StatCard({ label, value, icon, trend, trendLabel, tone = 'primary' }) {
+  return (
+    <div className={`stat-card ${tone}`}>
+      <div className="stat-card-top">
+        <span className="stat-label">{label}</span>
+        {icon && <div className="stat-icon">{icon}</div>}
+      </div>
+      <div className="stat-value">{value}</div>
+      {(trend || trendLabel) && (
+        <div className="stat-footer">
+          {trend && (
+            <span className={`stat-trend ${trend > 0 ? 'positive' : 'neutral'}`}>
+              {trend > 0 ? '↑' : ''} {trend}%
+            </span>
+          )}
+          <span>{trendLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PasswordStrengthMeter({ password }) {
   const hasMinLength = (password || '').length >= 8;
   const hasNumber = /\d/.test(password || '');
@@ -11,11 +33,11 @@ export function PasswordStrengthMeter({ password }) {
   const score = [hasMinLength, hasNumber, (hasUpper && hasLower), hasSpecial].filter(Boolean).length;
 
   function getStrengthLabel() {
-    if (!password) return { label: 'REQUIRED: Min 8 Characters', color: 'var(--paper-dim)' };
-    if (!hasMinLength) return { label: `NEED ${8 - password.length} MORE CHARS`, color: 'var(--neon-crimson)' };
-    if (score === 1 || score === 2) return { label: 'FAIR (Add numbers/uppercase)', color: 'var(--gold)' };
-    if (score === 3) return { label: 'STRONG', color: 'var(--neon-cyan)' };
-    return { label: 'TACTICAL GRADE ENCRYPTED', color: 'var(--neon-emerald)' };
+    if (!password) return { label: 'Min 8 Characters Required', color: 'var(--text-dim)' };
+    if (!hasMinLength) return { label: `Need ${8 - password.length} more characters`, color: 'var(--danger)' };
+    if (score <= 2) return { label: 'Fair (Add mixed case & numbers)', color: 'var(--warning)' };
+    if (score === 3) return { label: 'Strong Standard', color: 'var(--info)' };
+    return { label: 'Secure Military Standard', color: 'var(--success)' };
   }
 
   const { label, color } = getStrengthLabel();
@@ -28,8 +50,7 @@ export function PasswordStrengthMeter({ password }) {
             key={idx}
             className="password-bar-segment"
             style={{
-              background: idx <= score && hasMinLength ? color : 'rgba(255,255,255,0.08)',
-              boxShadow: idx <= score && hasMinLength ? `0 0 8px ${color}` : 'none',
+              background: idx <= score && hasMinLength ? color : 'var(--border)',
             }}
           />
         ))}
@@ -42,7 +63,7 @@ export function PasswordStrengthMeter({ password }) {
           {hasNumber ? '✓' : '•'} Number
         </span>
         <span className={`password-rule-item ${(hasUpper && hasLower) ? 'valid' : ''}`}>
-          {(hasUpper && hasLower) ? '✓' : '•'} Upper & Lower
+          {(hasUpper && hasLower) ? '✓' : '•'} Mixed Case
         </span>
         <span style={{ marginLeft: 'auto', color: color, fontWeight: 700 }}>
           {label}
@@ -58,18 +79,18 @@ export function Field({ label, hint, guideTag, badge, limitRule, rightElement, .
       <div className="field-header">
         <label>
           {label}
-          {props.required && <span style={{ color: 'var(--neon-crimson)', marginLeft: 3 }}>*</span>}
+          {props.required && <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {guideTag && <span className="guide-pill">{guideTag}</span>}
-          {badge && <span className="guide-tag">{badge}</span>}
+          {guideTag && <span className="badge badge-olive">{guideTag}</span>}
+          {badge && <span className="badge badge-saffron">{badge}</span>}
           {hint && <span className="field-hint">{hint}</span>}
         </div>
       </div>
       <input {...props} />
       {limitRule && (
-        <div style={{ fontSize: 11, color: 'var(--paper-dim)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-          ⚙️ Rule: {limitRule}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+          ⚙️ {limitRule}
         </div>
       )}
       {rightElement}
@@ -83,11 +104,11 @@ export function SelectField({ label, options, hint, guideTag, badge, ...props })
       <div className="field-header">
         <label>
           {label}
-          {props.required && <span style={{ color: 'var(--neon-crimson)', marginLeft: 3 }}>*</span>}
+          {props.required && <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {guideTag && <span className="guide-pill">{guideTag}</span>}
-          {badge && <span className="guide-tag">{badge}</span>}
+          {guideTag && <span className="badge badge-olive">{guideTag}</span>}
+          {badge && <span className="badge badge-saffron">{badge}</span>}
           {hint && <span className="field-hint">{hint}</span>}
         </div>
       </div>
@@ -100,35 +121,36 @@ export function SelectField({ label, options, hint, guideTag, badge, ...props })
   );
 }
 
-export function TagGuide({ tags = [], guide, title = "OPERATIONAL PROTOCOL" }) {
+export function TextareaField({ label, hint, guideTag, ...props }) {
   return (
-    <div className="guide-box" style={{
-      background: 'rgba(10, 18, 30, 0.65)',
-      border: '1px solid var(--border)',
-      borderRadius: 8,
-      padding: '12px 16px',
-      marginBottom: 16
-    }}>
+    <div className="field">
+      <div className="field-header">
+        <label>
+          {label}
+          {props.required && <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
+        </label>
+        {hint && <span className="field-hint">{hint}</span>}
+      </div>
+      <textarea {...props} />
+    </div>
+  );
+}
+
+export function TagGuide({ tags = [], guide, title = "OPERATIONAL STANDARD" }) {
+  return (
+    <div className="guide-box">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--neon-cyan)', fontWeight: 700, letterSpacing: '0.08em' }}>
+        <span style={{ fontSize: 11, color: 'var(--navy-900)', fontWeight: 700, letterSpacing: '0.05em' }}>
           {title}:
         </span>
         {tags.map((t, idx) => (
-          <span key={idx} style={{
-            fontSize: 10,
-            fontFamily: 'var(--font-mono)',
-            background: 'rgba(0, 240, 255, 0.08)',
-            border: '1px solid rgba(0, 240, 255, 0.25)',
-            color: 'var(--paper-bright)',
-            padding: '2px 8px',
-            borderRadius: 4
-          }}>
+          <span key={idx} className="badge badge-olive">
             {t}
           </span>
         ))}
       </div>
       {guide && (
-        <div style={{ fontSize: 12, color: 'var(--paper-dim)', lineHeight: 1.4 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 1.5 }}>
           {guide}
         </div>
       )}
@@ -136,15 +158,18 @@ export function TagGuide({ tags = [], guide, title = "OPERATIONAL PROTOCOL" }) {
   );
 }
 
-export function Panel({ title, guideTag, actions, children }) {
+export function Panel({ title, guideTag, subtitle, actions, children }) {
   return (
     <div className="panel">
       {(title || guideTag || actions) && (
         <div className="panel-header">
-          <h3>
-            {title}
-            {guideTag && <span className="guide-tag">{guideTag}</span>}
-          </h3>
+          <div>
+            <div className="panel-title">
+              {title}
+              {guideTag && <span className="badge badge-olive">{guideTag}</span>}
+            </div>
+            {subtitle && <div className="panel-subtitle">{subtitle}</div>}
+          </div>
           {actions && <div>{actions}</div>}
         </div>
       )}
@@ -163,18 +188,10 @@ export function ErrorBanner({ message }) {
   };
 
   return (
-    <div className="banner-error" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      padding: '14px 16px',
-      background: 'rgba(255, 0, 85, 0.12)',
-      border: '1px solid var(--neon-crimson)',
-      borderRadius: 8
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 18 }}>⚠️</span>
-        <span style={{ fontSize: 13, color: '#ffb3c1', lineHeight: 1.4 }}>{message}</span>
+    <div className="banner-error">
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1 }}>
+        <span style={{ fontSize: 16 }}>⚠️</span>
+        <span style={{ fontSize: 13, color: 'var(--danger)', lineHeight: 1.4, fontWeight: 600 }}>{message}</span>
       </div>
 
       {isConnError && (
@@ -182,45 +199,23 @@ export function ErrorBanner({ message }) {
           display: 'flex',
           gap: 8,
           flexWrap: 'wrap',
-          borderTop: '1px solid rgba(255, 0, 85, 0.25)',
-          paddingTop: 8,
           alignItems: 'center'
         }}>
-          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--paper-dim)' }}>
-            1-CLICK RESOLVE:
-          </span>
           <button
             type="button"
             onClick={() => switchEndpoint('/api/v1')}
-            style={{
-              background: 'rgba(0, 240, 255, 0.15)',
-              border: '1px solid var(--neon-cyan)',
-              color: 'var(--neon-cyan)',
-              padding: '4px 10px',
-              borderRadius: 4,
-              fontSize: 11,
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-              fontWeight: 700
-            }}
+            className="secondary"
+            style={{ padding: '4px 10px', fontSize: 11 }}
           >
-            ⚡ Switch to Cloud API (/api/v1)
+            Cloud API (/api/v1)
           </button>
           <button
             type="button"
             onClick={() => switchEndpoint('http://127.0.0.1:8000/api/v1')}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border)',
-              color: 'var(--paper-bright)',
-              padding: '4px 10px',
-              borderRadius: 4,
-              fontSize: 11,
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer'
-            }}
+            className="secondary"
+            style={{ padding: '4px 10px', fontSize: 11 }}
           >
-            💻 Switch to Localhost (8000)
+            Localhost (8000)
           </button>
         </div>
       )}
@@ -231,19 +226,103 @@ export function ErrorBanner({ message }) {
 export function SuccessBanner({ message }) {
   if (!message) return null;
   return (
-    <div className="banner-success" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '12px 16px',
-      background: 'rgba(0, 255, 170, 0.1)',
-      border: '1px solid var(--neon-emerald)',
-      borderRadius: 8,
-      color: 'var(--neon-emerald)',
-      fontSize: 13
-    }}>
-      <span style={{ fontSize: 18 }}>✅</span>
+    <div className="banner-success">
+      <span style={{ fontSize: 16 }}>✅</span>
       <span>{message}</span>
+    </div>
+  );
+}
+
+export function Modal({ isOpen, onClose, title, children }) {
+  if (!isOpen) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 style={{ fontSize: 17, color: 'var(--navy-900)' }}>{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: 20,
+              cursor: 'pointer',
+              color: 'var(--text-muted)'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div className="modal-body">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function NinePillarsMatrix({ scores = [] }) {
+  const defaultCriteria = [
+    { name: 'drill', label: 'Drill & Parade Precision', icon: '🎖️' },
+    { name: 'physical_fitness', label: 'Physical Fitness & Endurance', icon: '🏃' },
+    { name: 'communication', label: 'Communication & Briefing', icon: '📢' },
+    { name: 'leadership', label: 'Leadership & Squad Command', icon: '⭐' },
+    { name: 'ncc_knowledge', label: 'NCC Knowledge & SOPs', icon: '📖' },
+    { name: 'discipline', label: 'Discipline & Bearing', icon: '🛡️' },
+    { name: 'time_punctuality', label: 'Time Punctuality', icon: '⏱️' },
+    { name: 'teamwork', label: 'Teamwork & Esprit de Corps', icon: '🤝' },
+    { name: 'attendance', label: 'Parade Attendance', icon: '📋' },
+  ];
+
+  const scoreMap = {};
+  scores.forEach(s => {
+    scoreMap[s.criterion_name] = s.average_score;
+  });
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+      {defaultCriteria.map(item => {
+        const val = scoreMap[item.name] !== undefined ? scoreMap[item.name] : 8.0;
+        const pct = Math.min(100, Math.max(0, (val / 10) * 100));
+        const color = val >= 8.5 ? 'var(--success)' : val >= 6.5 ? 'var(--olive-600)' : val >= 5.0 ? 'var(--warning)' : 'var(--danger)';
+
+        return (
+          <div key={item.name} style={{
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy-900)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{item.icon}</span> {item.label}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color }}>
+                {val.toFixed(1)} <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>/ 10</span>
+              </span>
+            </div>
+            <div style={{
+              width: '100%',
+              height: 6,
+              background: 'var(--border)',
+              borderRadius: 999,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${pct}%`,
+                height: '100%',
+                background: color,
+                borderRadius: 999,
+                transition: 'width 0.4s ease'
+              }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

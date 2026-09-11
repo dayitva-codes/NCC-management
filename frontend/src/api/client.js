@@ -103,12 +103,20 @@ export const api = {
     apiRequest(`/colleges${battalionId ? `?battalion_id=${battalionId}` : ''}`, { auth: false }),
 
   registerCadet: (data) => apiRequest('/cadets/register', { method: 'POST', body: data, auth: false }),
+  listCadets: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return apiRequest(`/cadets${q ? `?${q}` : ''}`);
+  },
   getMyCadetProfile: () => apiRequest('/cadets/me'),
   getCadet: (id) => apiRequest(`/cadets/${id}`),
   getCadetScores: (id) => apiRequest(`/cadets/${id}/scores`),
   getCadetInsight: (id) => apiRequest(`/cadets/${id}/ai-insight`),
 
   registerMentor: (data) => apiRequest('/mentors/register', { method: 'POST', body: data, auth: false }),
+  listMentors: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return apiRequest(`/mentors${q ? `?${q}` : ''}`);
+  },
   verifyMentor: (userId) => apiRequest(`/mentors/${userId}/verify`, { method: 'POST' }),
 
   listCriteria: () => apiRequest('/evaluations/criteria', { auth: false }),
@@ -118,5 +126,6 @@ export const api = {
     apiRequest(`/leaderboard?${battalionId ? `battalion_id=${battalionId}&` : ''}limit=${limit}`),
   getBattalionDashboard: (id) => apiRequest(`/dashboard/battalion/${id}`),
 };
+
 
 export { ApiError };
