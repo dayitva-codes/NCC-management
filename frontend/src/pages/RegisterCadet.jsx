@@ -52,20 +52,58 @@ export default function RegisterCadet() {
   }
 
   function autoFillSample() {
+    const samples = [
+      {
+        name: 'Arjun Singhania',
+        gender: 'male',
+        wing: 'SD',
+        code: 'SDA',
+        goal: 'Aiming for IMA Dehradun Direct Commission & Thal Sainik Camp (TSC)',
+        addr: 'Cadet Lines, Sector 4, University Enclave',
+      },
+      {
+        name: 'Tanvi Deshmukh',
+        gender: 'female',
+        wing: 'SW',
+        code: 'SWA',
+        goal: 'Aiming for Republic Day Camp (RDC) Rajpath Contingent & Best Cadet Trophy',
+        addr: 'Girls Hostel Block C, University Campus',
+      },
+      {
+        name: 'Devendra Yadav',
+        gender: 'male',
+        wing: 'SD',
+        code: 'SDB',
+        goal: 'Aiming for Paratroopers Jump Training Camp & Certificate C Alpha Grade',
+        addr: 'Civil Lines, Model Town',
+      },
+      {
+        name: 'Meera Nair',
+        gender: 'female',
+        wing: 'SW',
+        code: 'SWB',
+        goal: 'Aiming for All India Vayu Sainik Camp (AIVSC) Flying Squad',
+        addr: 'Subhash Nagar, Tagore Marg',
+      },
+    ];
+
+    const pick = samples[Math.floor(Math.random() * samples.length)];
     const randomId = Math.floor(1000 + Math.random() * 9000);
+    const randomPhone = `98${Math.floor(10000000 + Math.random() * 89999999)}`;
+
     setForm({
-      email: `cadet_${randomId}@ncc.local`,
+      email: `${pick.name.toLowerCase().replace(/\s+/g, '.')}.${randomId}@ncc.gov.in`,
       password: 'CadetPassword123!',
       battalion_id: battalions[0]?.id ? String(battalions[0].id) : '1',
       college_id: colleges[0]?.id ? String(colleges[0].id) : '1',
-      full_name: 'Priya Sharma',
-      enrollment_number: `MP24SWG${randomId}`,
-      mobile: '9876543210',
+      full_name: pick.name,
+      enrollment_number: `MP24${pick.code}${randomId}`,
+      mobile: randomPhone,
       academic_year: '2',
-      address: 'Hostel Block B, Govt Girls Campus',
-      gender: 'female',
-      wing: 'SW',
-      ncc_goal: 'Aiming for Republic Day Camp (RDC) & Best Cadet Trophy',
+      address: pick.addr,
+      gender: pick.gender,
+      wing: pick.wing,
+      ncc_goal: pick.goal,
     });
     setError('');
   }

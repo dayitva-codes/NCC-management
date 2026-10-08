@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { NccRibbonBar } from './NccLogo';
 
-export function TopHeader({ activeBattalion = '3 MP Girls Bn', onSearch, onRefresh }) {
+export function TopHeader({ activeBattalion = '3 MP Girls Bn', onSearch, onRefresh, onToggleMobileNav }) {
   const { user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [battalions, setBattalions] = useState([]);
@@ -71,6 +71,17 @@ export function TopHeader({ activeBattalion = '3 MP Girls Bn', onSearch, onRefre
       <NccRibbonBar height={3} />
       <header className="top-header">
         <div className="header-left">
+          {onToggleMobileNav && (
+            <button
+              type="button"
+              className="mobile-nav-toggle-btn"
+              onClick={onToggleMobileNav}
+              aria-label="Toggle navigation drawer"
+              title="Open Navigation Menu"
+            >
+              ☰
+            </button>
+          )}
           <div className="unit-badge-pill">
             <span className="unit-indicator-dot" />
             <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>UNIT:</span>

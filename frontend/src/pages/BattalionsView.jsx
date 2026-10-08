@@ -2,7 +2,19 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import { Field, SelectField, Panel, ErrorBanner, SuccessBanner, TagGuide } from '../components/Form';
 import { NccCrest } from '../components/NccLogo';
+import { RefreshingBuffer } from '../components/RefreshingBuffer';
+import { useDataSync } from '../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * BATTALIONS VIEW: COMMAND REGIMENT & AFFILIATED COLLEGES REGISTRY
+ * ==============================================================================
+ * Manages the top-level organizational structure of NCC commands:
+ * - Creates and registers official military Battalions (e.g. "3 MP Girls Bn NCC").
+ * - Links affiliated educational colleges and companies under each battalion.
+ * - Uses `useDataSync` to immediately reflect newly created units everywhere.
+ * ==============================================================================
+ */
 export default function BattalionsView() {
   const [battalions, setBattalions] = useState([]);
   const [colleges, setColleges] = useState([]);
@@ -37,10 +49,10 @@ export default function BattalionsView() {
 
   useEffect(() => {
     refreshData();
-    const handleGlobalRefresh = () => refreshData();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [refreshData]);
+
+  // Automated sync when battalions or colleges update
+  useDataSync(refreshData);
 
   async function createBattalion(e) {
     e.preventDefault();

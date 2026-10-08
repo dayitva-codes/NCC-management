@@ -1,16 +1,32 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { StatCard, Panel, ErrorBanner } from '../../components/Form';
 import CadetProfileModal from '../../components/CadetProfileModal';
 import { NccCrest } from '../../components/NccLogo';
+import { RefreshingBuffer } from '../../components/RefreshingBuffer';
+import { useDataSync } from '../../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * MENTOR DASHBOARD: ASSOCIATE NCC OFFICER (ANO) WORKSTATION
+ * ==============================================================================
+ * Designed for military instructors (ANOs) managing assigned cadet companies:
+ * - Real-time cadet roster filtering by Wing (Army/Navy/Air: SD, SW, JD, JW).
+ * - Real-time identification of cadets at attendance or performance risk.
+ * - Instant drill-down modal into individual cadet dossiers and 9-pillar ratings.
+ * - Continuous live sync via `useDataSync` whenever new cadets are enrolled or graded.
+ * ==============================================================================
+ */
 export default function MentorDashboard() {
+  const navigate = useNavigate();
   const [cadets, setCadets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selectedCadet, setSelectedCadet] = useState(null);
+  const [examOverview, setExamOverview] = useState(null);
+  const [recentExams, setRecentExams] = useState([]);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -19,18 +35,25 @@ export default function MentorDashboard() {
   const [perfFilter, setPerfFilter] = useState('ALL');
   const [attFilter, setAttFilter] = useState('ALL');
 
-  const loadCadets = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.listCadets();
-      if (Array.isArray(data)) {
-        setCadets(data);
+      const [cadetsRes, examRes] = await Promise.allSettled([
+        api.listCadets(),
+        api.getOfficerExamOverview(),
+      ]);
+      if (cadetsRes.status === 'fulfilled' && Array.isArray(cadetsRes.value)) {
+        setCadets(cadetsRes.value);
       } else {
         setCadets([]);
       }
+      if (examRes.status === 'fulfilled' && examRes.value) {
+        setExamOverview(examRes.value);
+        setRecentExams(examRes.value.recent_sessions || []);
+      }
     } catch (err) {
-      setError(err.message || 'Could not load assigned cadets.');
+      setError(err.message || 'Could not load assigned cadets from database.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -38,11 +61,11 @@ export default function MentorDashboard() {
   }, []);
 
   useEffect(() => {
-    loadCadets();
-    const handleGlobalRefresh = () => loadCadets();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
-  }, [loadCadets]);
+    loadData();
+  }, [loadData]);
+
+  // Automated sync when database updates
+  useDataSync(loadData);
 
   // Filtered Cadets
   const filteredCadets = useMemo(() => {
@@ -68,6 +91,15 @@ export default function MentorDashboard() {
   }, [cadets, search, divisionFilter, yearFilter, perfFilter, attFilter]);
 
   const atRiskCount = cadets.filter(c => (c.attendance || 90) < 75 || (c.performance || 8.5) < 7.0).length;
+
+  if (loading && cadets.length === 0) {
+    return (
+      <RefreshingBuffer
+        label="Synchronizing Assigned Cadet Muster Rolls..."
+        subtext="Accessing company strength and attendance records from DBMS"
+      />
+    );
+  }
 
   return (
     <div>
@@ -369,6 +401,136 @@ export default function MentorDashboard() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      {/* Cadet Examination & Mock Test Results Panel */}
+      <Panel title="Cadet Examination & Mock Test Results" tag="OFFICER AUDIT">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ background: 'var(--bg-main)', padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>COMPLETED EXAMS</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy-900)' }}>
+                {examOverview?.completed_count ?? 0}
+              </div>
+            </div>
+            <div style={{ background: 'var(--bg-main)', padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>BATTALION AVG ACCURACY</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a' }}>
+                {examOverview?.average_accuracy ?? 0}%
+              </div>
+            </div>
+            <div style={{ background: 'var(--bg-main)', padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>AVG SCORE</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#2563eb' }}>
+                {examOverview?.average_score ?? 0} pts
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/ncc-mock-tests/pipeline"
+            className="secondary"
+            style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <span>🎯</span> Open Question Pipeline & Full Audit ➔
+          </Link>
+        </div>
+
+        {recentExams.length === 0 ? (
+          <div className="empty-state-card" style={{ padding: 24 }}>
+            <div className="empty-state-icon">📝</div>
+            <div className="empty-state-title">No Cadet Exam Submissions Yet</div>
+            <div className="empty-state-text">
+              Cadet mock exam attempts and scorecards will automatically stream into this terminal once students submit tests.
+            </div>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="data-table" style={{ fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th>Cadet Examinee</th>
+                  <th>Regimental No.</th>
+                  <th>Test Mode</th>
+                  <th style={{ textAlign: 'center' }}>Score</th>
+                  <th style={{ textAlign: 'center' }}>Accuracy</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
+                  <th style={{ textAlign: 'right' }}>Submitted At</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentExams.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          background: '#e0e7ff',
+                          color: '#3730a3',
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          fontSize: 10,
+                          fontWeight: 800,
+                        }}>
+                          {s.cadet_rank || 'CDT'}
+                        </span>
+                        <span style={{ fontWeight: 700, color: 'var(--navy-900)' }}>
+                          {s.user_name || s.user_email || `User #${s.user_id}`}
+                        </span>
+                      </div>
+                      {s.college_name && (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {s.college_name}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#64748b' }}>
+                        {s.cadet_regimental_number || 'N/A'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge badge-navy" style={{ fontSize: 10 }}>
+                        {s.mode.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 800, color: '#1d4ed8' }}>
+                      {s.total_score != null ? s.total_score.toFixed(1) : '-'}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                      {s.accuracy_percentage != null ? `${s.accuracy_percentage.toFixed(1)}%` : '-'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-saffron'}`} style={{ fontSize: 10 }}>
+                        {s.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-muted)' }}>
+                      {new Date(s.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/ncc-mock-tests/results?session=${s.id}`)}
+                        className="secondary"
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          height: 28,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <span>📄</span> View Scorecard
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

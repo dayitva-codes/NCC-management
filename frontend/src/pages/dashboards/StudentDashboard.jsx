@@ -4,7 +4,19 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { StatCard, Panel, NinePillarsMatrix, ErrorBanner } from '../../components/Form';
 import { NccCrest } from '../../components/NccLogo';
+import { RefreshingBuffer } from '../../components/RefreshingBuffer';
+import { useDataSync } from '../../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * STUDENT (CADET) DASHBOARD: INDIVIDUAL SERVICE DOSSIER & PROGRESS TRACKER
+ * ==============================================================================
+ * This workstation displays the logged-in cadet's personal service records:
+ * - Real-time 9-pillar military assessment ratings recorded by their ANO.
+ * - Dynamic composite readiness score and battalion rank.
+ * - Auto-refreshes seamlessly via `useDataSync` whenever evaluations are submitted.
+ * ==============================================================================
+ */
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -57,10 +69,19 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     loadStudentData();
-    const handleGlobalRefresh = () => loadStudentData();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [loadStudentData]);
+
+  // Automated sync when changes occur
+  useDataSync(loadStudentData);
+
+  if (loading && !profile) {
+    return (
+      <RefreshingBuffer
+        label="Accessing Cadet Service Dossier..."
+        subtext="Synchronizing official 9-pillar ratings, parade attendance, and leaderboard ranking"
+      />
+    );
+  }
 
   const overallAvg = scores.length > 0
     ? (scores.reduce((acc, s) => acc + (Number(s.average_score) || 0), 0) / scores.length).toFixed(1)

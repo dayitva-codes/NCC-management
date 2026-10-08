@@ -1,16 +1,31 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { StatCard, Panel, NinePillarsMatrix, ErrorBanner } from '../../components/Form';
 import { NccCrest, ArmyWingEmblem, NavyWingEmblem, AirWingEmblem } from '../../components/NccLogo';
+import { RefreshingBuffer } from '../../components/RefreshingBuffer';
+import { useDataSync } from '../../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * ADMIN DASHBOARD: DIRECTORATE GENERAL NCC COMMAND OVERVIEW
+ * ==============================================================================
+ * This workstation provides the primary command interface for NCC Administrators:
+ * - Aggregates real-time figures directly from the DBMS (Battalions, Cadets, ANOS).
+ * - Real-time auto-synchronization via `useDataSync` whenever rosters or evaluations update.
+ * - Displays live wing distribution (Army/Navy/Air Wing breakdown: SD, SW, JD, JW).
+ * - Shows top-performing cadet dossiers and the composite 9-pillar readiness benchmark.
+ * ==============================================================================
+ */
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [battalions, setBattalions] = useState([]);
   const [colleges, setColleges] = useState([]);
   const [cadets, setCadets] = useState([]);
   const [mentors, setMentors] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [criteriaScores, setCriteriaScores] = useState([]);
+  const [examOverview, setExamOverview] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,13 +34,14 @@ export default function AdminDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [battRes, collRes, cadetRes, mentorRes, leadRes, critRes] = await Promise.allSettled([
+      const [battRes, collRes, cadetRes, mentorRes, leadRes, critRes, examRes] = await Promise.allSettled([
         api.listBattalions(),
         api.listColleges(),
         api.listCadets(),
         api.listMentors(),
         api.getLeaderboard(null, 10),
         api.listCriteria(),
+        api.getOfficerExamOverview(),
       ]);
 
       if (battRes.status === 'fulfilled' && Array.isArray(battRes.value)) {
@@ -42,6 +58,9 @@ export default function AdminDashboard() {
       }
       if (leadRes.status === 'fulfilled' && Array.isArray(leadRes.value)) {
         setLeaderboard(leadRes.value);
+      }
+      if (examRes.status === 'fulfilled' && examRes.value) {
+        setExamOverview(examRes.value);
       }
 
       // 9 Pillars benchmark from criteria
@@ -63,10 +82,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchRealData();
-    const handleGlobalRefresh = () => fetchRealData();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [fetchRealData]);
+
+  // Automated real-time synchronization whenever changes occur across the system
+  useDataSync(fetchRealData);
 
   // Dynamic calculations from authentic database records
   const totalCadetsCount = cadets.length;
@@ -84,6 +103,16 @@ export default function AdminDashboard() {
     JW: cadets.filter(c => c.wing === 'JW').length,
     JD: cadets.filter(c => c.wing === 'JD').length,
   };
+
+  // Sleek military buffer animation while first contacting database
+  if (loading && battalions.length === 0) {
+    return (
+      <RefreshingBuffer
+        label="Connecting to Directorate General NCC DBMS..."
+        subtext="Synchronizing battalion rosters, cadet strength, and 9-pillar readiness metrics"
+      />
+    );
+  }
 
   return (
     <div>
@@ -285,6 +314,151 @@ export default function AdminDashboard() {
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--navy-900)', fontFamily: 'var(--font-mono)' }}>
                         {Number(cadet.average_score).toFixed(1)} / 10
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Battalion Mock Exam Results & Cadet Performance */}
+      <div style={{ marginBottom: 24 }}>
+        <Panel
+          title="Directorate Mock Examination Results & Cadet Performance"
+          tag="EXAM COMMAND"
+          action={
+            <Link to="/ncc-mock-tests/pipeline" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>
+              Open Full Exam Pipeline ➔
+            </Link>
+          }
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div style={{ background: 'var(--bg-main)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL EXAM SESSIONS</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--navy-900)', marginTop: 4 }}>
+                {examOverview?.total_sessions ?? 0}
+              </div>
+              <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2 }}>
+                ✓ {examOverview?.completed_count ?? 0} Submitted & Certified
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg-main)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>BATTALION AVERAGE SCORE</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#2563eb', marginTop: 4 }}>
+                {examOverview?.average_score ?? 0} pts
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Across all test modes
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg-main)', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>BATTALION ACCURACY</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', marginTop: 4 }}>
+                {examOverview?.average_accuracy ?? 0}%
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Correct vs attempted
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy-900)', marginBottom: 10 }}>
+            RECENT CADET EXAMINATION SUBMISSIONS
+          </div>
+
+          {(!examOverview?.recent_sessions || examOverview.recent_sessions.length === 0) ? (
+            <div className="empty-state-card" style={{ padding: 24 }}>
+              <div className="empty-state-icon">📝</div>
+              <div className="empty-state-title">No Exam Attempts Recorded</div>
+              <div className="empty-state-text">
+                Cadet exam results, answer sheets, and psychometric scores will be listed here automatically.
+              </div>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="data-table" style={{ fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th>Cadet Examinee</th>
+                    <th>Regimental No.</th>
+                    <th>Exam Mode</th>
+                    <th style={{ textAlign: 'center' }}>Score</th>
+                    <th style={{ textAlign: 'center' }}>Accuracy</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                    <th style={{ textAlign: 'right' }}>Submitted Date</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {examOverview.recent_sessions.slice(0, 6).map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            background: '#e0e7ff',
+                            color: '#3730a3',
+                            padding: '1px 6px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 800,
+                          }}>
+                            {s.cadet_rank || 'CDT'}
+                          </span>
+                          <span style={{ fontWeight: 700, color: 'var(--navy-900)' }}>
+                            {s.user_name || s.user_email || `User #${s.user_id}`}
+                          </span>
+                        </div>
+                        {s.college_name && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {s.college_name}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#64748b' }}>
+                          {s.cadet_regimental_number || 'N/A'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge badge-navy" style={{ fontSize: 10 }}>
+                          {s.mode.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', fontWeight: 800, color: '#1d4ed8' }}>
+                        {s.total_score != null ? s.total_score.toFixed(1) : '-'}
+                      </td>
+                      <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                        {s.accuracy_percentage != null ? `${s.accuracy_percentage.toFixed(1)}%` : '-'}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-saffron'}`} style={{ fontSize: 10 }}>
+                          {s.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-muted)' }}>
+                        {new Date(s.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/ncc-mock-tests/results?session=${s.id}`)}
+                          className="secondary"
+                          style={{
+                            fontSize: 11,
+                            padding: '3px 8px',
+                            height: 28,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <span>📄</span> Inspect Scorecard
+                        </button>
                       </td>
                     </tr>
                   ))}

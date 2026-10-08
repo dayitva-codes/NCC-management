@@ -34,12 +34,8 @@ else:
 @app.on_event("startup")
 def on_startup():
     try:
-        Base.metadata.create_all(bind=engine)
-        db = SessionLocal()
-        try:
-            seed(db)
-        finally:
-            db.close()
+        from app.db.session import ensure_db_ready
+        ensure_db_ready()
     except Exception as e:
         print(f"Startup DB init warning: {e}")
 

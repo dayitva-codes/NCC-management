@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import AppShell from './components/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
 import { RoleRoute } from './components/PermissionGuard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import RegisterCadet from './pages/RegisterCadet';
 import RegisterMentor from './pages/RegisterMentor';
@@ -20,6 +21,10 @@ import KnowledgeView from './pages/KnowledgeView';
 import MyProfileView from './pages/MyProfileView';
 import ReportsView from './pages/ReportsView';
 import SettingsView from './pages/SettingsView';
+import NCCMockTestHub from './pages/NCCMockTestHub';
+import NCCMockTestArena from './pages/NCCMockTestArena';
+import NCCMockTestResults from './pages/NCCMockTestResults';
+import NCCQuestionPipeline from './pages/NCCQuestionPipeline';
 import AdminHome from './pages/AdminHome';
 import MentorHome from './pages/MentorHome';
 import CadetHome from './pages/CadetHome';
@@ -41,11 +46,31 @@ export default function App() {
           <Route path="/register/mentor" element={<RegisterMentor />} />
 
           {/* Authenticated Application Shell */}
-          <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+          <Route element={<ErrorBoundary><ProtectedRoute><AppShell /></ProtectedRoute></ErrorBoundary>}>
             {/* Dynamic Role-Routed Main Station */}
             <Route path="/dashboard" element={<DashboardView />} />
             <Route path="/my-profile" element={<MyProfileView />} />
             <Route path="/knowledge" element={<KnowledgeView />} />
+            
+            {/* Redirect legacy mock-tests route to NCC Mock Tests */}
+            <Route path="/mock-test" element={<Navigate to="/ncc-mock-tests" replace />} />
+            <Route path="/mock-test/*" element={<Navigate to="/ncc-mock-tests" replace />} />
+            <Route path="/mock-tests" element={<Navigate to="/ncc-mock-tests" replace />} />
+            <Route path="/mock-tests/*" element={<Navigate to="/ncc-mock-tests" replace />} />
+            
+            {/* NCC Certificate & Training Mock Exam System */}
+            <Route path="/ncc-mock-tests" element={<NCCMockTestHub />} />
+            <Route path="/ncc-mock-tests/arena" element={<NCCMockTestArena />} />
+            <Route path="/ncc-mock-tests/results" element={<NCCMockTestResults />} />
+            <Route
+              path="/ncc-mock-tests/pipeline"
+              element={
+                <RoleRoute allowedRoles={['admin', 'mentor']}>
+                  <NCCQuestionPipeline />
+                </RoleRoute>
+              }
+            />
+
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/tasks" element={<TasksView />} />
             <Route path="/performance" element={<PerformanceView />} />

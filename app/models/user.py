@@ -11,6 +11,8 @@ class RoleEnum(str, enum.Enum):
     cadet = "cadet"
     mentor = "mentor"
     admin = "admin"
+    co = "co"
+    co_admin = "co_admin"
 
 
 class User(Base):

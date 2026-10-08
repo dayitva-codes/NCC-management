@@ -13,6 +13,7 @@ export const ROLE_PERMISSIONS = {
     'performance.view_self',
     'tasks.view_self',
     'knowledge.view',
+    'mock_tests.view',
     'ai_insights.view_self',
     'leaderboard.view',
     'settings.view',
@@ -28,6 +29,7 @@ export const ROLE_PERMISSIONS = {
     'tasks.manage_assigned',
     'ai_suite.view_mentor',
     'knowledge.view',
+    'mock_tests.view',
     'reports.view',
     'settings.view',
   ],
@@ -44,6 +46,7 @@ export const ROLE_PERMISSIONS = {
     'tasks.manage',
     'ai_suite.manage',
     'knowledge.view',
+    'mock_tests.view',
     'reports.manage',
     'settings.manage',
   ],
@@ -72,7 +75,8 @@ export const NAVIGATION_CONFIG = {
       group: 'Learning & AI',
       badge: 'AI/KNOW',
       items: [
-        { label: 'MCQ & Knowledge', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
+        { label: 'NCC Mock Test Arena', path: '/ncc-mock-tests', icon: '🎯', permission: 'mock_tests.view' },
+        { label: 'Books & Syllabus Library', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
         { label: 'AI Insights & Planner', path: '/ai-suite', icon: '🤖', permission: 'ai_insights.view_self' },
       ],
     },
@@ -122,8 +126,10 @@ export const NAVIGATION_CONFIG = {
       group: 'AI & Knowledge',
       badge: 'AI LAB',
       items: [
+        { label: 'NCC Mock Test Arena', path: '/ncc-mock-tests', icon: '🎯', permission: 'mock_tests.view' },
+        { label: 'Question Bank Pipeline', path: '/ncc-mock-tests/pipeline', icon: '📊', permission: 'mock_tests.view' },
         { label: 'AI Performance Insights', path: '/ai-suite', icon: '🤖', permission: 'ai_suite.view_mentor' },
-        { label: 'NCC Knowledge Bank', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
+        { label: 'Books & Syllabus Library', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
       ],
     },
     {
@@ -169,8 +175,10 @@ export const NAVIGATION_CONFIG = {
       group: 'AI Command Suite',
       badge: 'GEN AI',
       items: [
+        { label: 'NCC Mock Test Arena', path: '/ncc-mock-tests', icon: '🎯', permission: 'mock_tests.view' },
+        { label: 'Question Bank Pipeline', path: '/ncc-mock-tests/pipeline', icon: '📊', permission: 'mock_tests.view' },
         { label: 'AI Command Suite', path: '/ai-suite', icon: '🤖', permission: 'ai_suite.manage' },
-        { label: 'NCC Knowledge Bank', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
+        { label: 'Books & Syllabus Library', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
       ],
     },
     {

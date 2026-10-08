@@ -16,8 +16,53 @@ npm run dev
 | Service | URL | Description |
 | :--- | :--- | :--- |
 | **Frontend Terminal** | [http://127.0.0.1:5173](http://127.0.0.1:5173) | Cyber-command user interface |
+| **NCC Mock Test Arena** | [http://127.0.0.1:5173/ncc-mock-tests](http://127.0.0.1:5173/ncc-mock-tests) | Certificate A/B/C exam practice & cadet dossier |
+| **NCC Question Bank Pipeline** | [http://127.0.0.1:5173/ncc-mock-tests/pipeline](http://127.0.0.1:5173/ncc-mock-tests/pipeline) | Psychometric item analysis & CSV importer |
+| **Coding Arena** | [http://127.0.0.1:5173/mock-tests](http://127.0.0.1:5173/mock-tests) | Timed algorithm challenges & editor |
 | **Backend API Gateway** | [http://127.0.0.1:8000/api/v1](http://127.0.0.1:8000/api/v1) | FastAPI endpoints & health check |
 | **Interactive Swagger Docs** | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Live API testing & schema docs |
+
+---
+
+## 🎖️ NCC Mock Test & Certificate Exam Practice (New)
+
+The system includes a full-featured MCQ-based mock examination engine modeled after official **NCC Certificate A, B, and C** examinations:
+
+### ✨ Core Capabilities
+- **19 Official Configurable Syllabus Topics**:
+  - NCC Organisation & History, Aim/Motto/Pledge/Song, Ranks & Insignia, Wings (Army/Navy/Air), Certificates (A/B/C), Camps & Events, Drill & Drill Commands, Weapon Training (.22 Rifle, 7.62mm SLR, 5.56mm INSAS), Map Reading & Compass, Field Craft & Battle Craft, Leadership & Personality Development, National Integration & Culture, Disaster Management, Social Service & Community Development, Health & Hygiene, First Aid, Adventure Activities, Self-Defence, Environment & Ecology, Military History.
+- **5 Examination & Practice Modes**:
+  - **Full Mock Exam**: Blueprint-balanced distribution mirroring actual Directorate certification exams.
+  - **Certificate-wise Practice**: Filtered by standard for Certificate A (JD/JW), Certificate B (SD/SW 2nd year), or Certificate C (SD/SW 3rd year).
+  - **Topic-wise Technical Drill**: Deep dive into specific topics with custom question counts.
+  - **Quick 20-Q Sprint**: Fast 20-minute daily review.
+  - **Targeted Weak Area Practice**: Spaced-repetition mode prioritizing syllabus topics with accuracy $< 50\%$.
+- **Security & Integrity Safeguards**:
+  - **Zero Answer Key Leakage**: Option correct keys and handbook explanations are withheld from the client until after submission.
+  - **Server-Authoritative Timer**: Countdown survives page refreshes and browser restarts; answers submitted after expiration are rejected with HTTP 400.
+  - **Shuffled Options**: Every session randomizes option permutations (`A/B/C/D`) to prevent visual pattern cheating.
+  - **Progressive Auto-Save**: Real-time background sync on every selection with live status indicators.
+- **Scoring & Review Dossier**:
+  - Standard marking scheme: **+1.0** for correct, **-0.25** negative marking for incorrect, **0.0** for unattempted.
+  - Comprehensive review with question-by-question breakdown, explanations, and official NCC handbook source citations.
+- **Psychometrics & Question Quality Pipeline**:
+  - **Difficulty Index ($P$)**: Proportion of cadets answering correctly ($0.0 \dots 1.0$).
+  - **Discrimination Index ($D$)**: Evaluates question discernment between top 27% and bottom 27% cohorts ($D = P_{\text{top}} - P_{\text{bottom}}$).
+  - **Distractor Analysis**: Tracks frequency of selection across all 4 options ($A, B, C, D$).
+  - **Automated Quality Flags**: `too_hard`, `too_easy`, `negative_discrimination`, and `ambiguous_key`.
+  - **Bulk CSV Importer**: Row-level validation verifying valid topics, difficulty, certificate levels, wings, exactly 4 distinct options, and 0-3 answer indices.
+
+### 🧪 Running NCC Mock Test & API Tests
+```bash
+# Run all 28 test suites (NCC mock test + coding test platform)
+pytest tests/ -v
+
+# Run dedicated NCC Mock Test suite
+pytest tests/test_ncc_mock_test.py -v
+
+# Run core battalion regression suite
+python test_app.py
+```
 
 ---
 

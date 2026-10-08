@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getNavigationForRole } from '../config/navigationConfig';
+import { subscribeBufferLoading } from '../api/client';
+import { TopBufferBar } from './RefreshingBuffer';
 import TopHeader from './TopHeader';
 import { NccCrest, NccRibbonBar } from './NccLogo';
 
@@ -10,6 +12,11 @@ export default function AppShell() {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+
+  useEffect(() => {
+    return subscribeBufferLoading(setIsBuffering);
+  }, []);
 
   const roleMeta = {
     admin: {
@@ -49,6 +56,9 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
+      {/* Real-time Network Buffer Sweep Bar */}
+      <TopBufferBar active={isBuffering} />
+
       {/* Mobile Backdrop */}
       {mobileNavOpen && (
         <div

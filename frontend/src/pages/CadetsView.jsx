@@ -4,7 +4,19 @@ import { api } from '../api/client';
 import { Field, SelectField, Panel, ErrorBanner } from '../components/Form';
 import CadetProfileModal from '../components/CadetProfileModal';
 import { NccCrest } from '../components/NccLogo';
+import { RefreshingBuffer } from '../components/RefreshingBuffer';
+import { useDataSync } from '../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * CADETS VIEW: MASTER CADET ROSTER & REPOSITORY
+ * ==============================================================================
+ * Displays the verified roster of all enrolled cadets:
+ * - Real-time filtering by Wing (Army/Navy/Air), academic year, and regimental number.
+ * - Live inspection of individual cadet military dossiers and attendance records.
+ * - Uses `useDataSync` to immediately refresh when a new cadet enrolls or updates.
+ * ==============================================================================
+ */
 export default function CadetsView() {
   const [cadets, setCadets] = useState([]);
   const [battalions, setBattalions] = useState([]);
@@ -45,10 +57,10 @@ export default function CadetsView() {
 
   useEffect(() => {
     loadData();
-    const handleGlobalRefresh = () => loadData();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [loadData]);
+
+  // Real-time synchronization hook
+  useDataSync(loadData);
 
   const filteredCadets = useMemo(() => {
     return cadets.filter(c => {
@@ -189,29 +201,36 @@ export default function CadetsView() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: cadet.gender === 'female' ? 'var(--olive-100)' : 'var(--bg-subtle)',
-                            color: 'var(--navy-900)',
+                            width: 34,
+                            height: 34,
+                            borderRadius: '6px',
+                            background: cadet.rank === 'SUO' ? '#d97706' : cadet.rank === 'JUO' ? '#2563eb' : '#091a32',
+                            color: '#FFFFFF',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 13,
-                            fontWeight: 700,
+                            fontSize: 11,
+                            fontWeight: 800,
                           }}>
-                            {cadet.full_name?.charAt(0) || 'C'}
+                            {cadet.rank || 'CDT'}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: 'var(--navy-900)' }}>{cadet.full_name}</div>
+                            <div style={{ fontWeight: 700, color: 'var(--navy-900)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>{cadet.full_name}</span>
+                              {cadet.blood_group && (
+                                <span style={{ fontSize: 10, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>
+                                  {cadet.blood_group}
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              {cadet.gender === 'female' ? 'Female Cadet' : 'Male Cadet'}
+                              {cadet.college_name || (cadet.gender === 'female' ? 'Senior Wing' : 'Senior Division')}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--navy-900)' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>
                           {cadet.enrollment_number}
                         </span>
                       </td>
@@ -239,11 +258,11 @@ export default function CadetsView() {
                       <td style={{ textAlign: 'right' }}>
                         <button
                           type="button"
-                          className="secondary"
-                          style={{ padding: '6px 12px', fontSize: 12 }}
+                          className="primary"
+                          style={{ padding: '6px 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                           onClick={() => handleOpenProfile(cadet)}
                         >
-                          👤 View Dossier
+                          <span>👤 Dossier & Exams</span>
                         </button>
                       </td>
                     </tr>

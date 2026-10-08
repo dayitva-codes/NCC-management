@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -35,6 +35,21 @@ class Cadet(Base):
     gender = Column(Enum(GenderEnum), nullable=False)
     wing = Column(Enum(WingEnum), nullable=False)
     ncc_goal = Column(String, nullable=True)
+
+    # Detailed Military Dossier Fields
+    rank = Column(String, default="CDT")  # CDT, L/CPL, CPL, SGT, CQMS, CSM, JUO, SUO
+    blood_group = Column(String, nullable=True)  # O+, A+, B+, AB+, etc.
+    dob = Column(String, nullable=True)  # YYYY-MM-DD
+    guardian_name = Column(String, nullable=True)
+    identification_mark = Column(String, nullable=True)
+    company_platoon = Column(String, nullable=True)  # e.g., "Alpha Coy, 1 Platoon"
+    camps_attended = Column(JSON, default=list, nullable=True)  # List of camps with role & year
+    weapon_grouping = Column(String, nullable=True)  # e.g., "1.8 cm (.22 Deluxe)"
+    firing_classification = Column(String, nullable=True)  # e.g., "Marksman Grade 1"
+    pft_score = Column(String, nullable=True)  # Physical Fitness Test standard
+    certificate_status = Column(String, nullable=True)  # e.g., "Cert 'A' Passed • Cert 'B' Appearing"
+    awards = Column(JSON, default=list, nullable=True)  # List of medals & commendations
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="cadet_profile")

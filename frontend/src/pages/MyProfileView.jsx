@@ -1,13 +1,83 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { Panel, NinePillarsMatrix, ErrorBanner } from '../components/Form';
 import { NccCrest, ArmyWingEmblem, NavyWingEmblem, AirWingEmblem } from '../components/NccLogo';
+import { RefreshingBuffer } from '../components/RefreshingBuffer';
+
+function formatCampItem(camp, idx) {
+  const isObj = typeof camp === 'object' && camp !== null;
+  const name = isObj ? (camp.name || camp.title || 'NCC Training Camp') : String(camp || '');
+  const year = isObj ? camp.year : '';
+  const loc = isObj ? camp.location : '';
+  const role = isObj ? camp.role : '';
+
+  return (
+    <div
+      key={idx}
+      style={{
+        background: '#f8fafc',
+        border: '1px solid #cbd5e1',
+        borderRadius: 6,
+        padding: '6px 12px',
+        fontSize: 12,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap',
+      }}
+    >
+      <span style={{ fontWeight: 700, color: 'var(--navy-900, #091a32)' }}>⛺ {name}</span>
+      {year && (
+        <span style={{ background: '#e2e8f0', color: '#475569', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+          {year}
+        </span>
+      )}
+      {loc && <span style={{ color: '#64748b', fontSize: 11 }}>• {loc}</span>}
+      {role && <span style={{ color: '#166534', fontWeight: 600, fontSize: 11 }}>[{role}]</span>}
+    </div>
+  );
+}
+
+function formatAwardItem(award, idx) {
+  const isObj = typeof award === 'object' && award !== null;
+  const title = isObj ? (award.title || award.name || 'Commendation') : String(award || '');
+  const year = isObj ? award.year : '';
+  const auth = isObj ? award.authority : '';
+
+  return (
+    <div
+      key={idx}
+      style={{
+        background: '#fefce8',
+        border: '1px solid #fef08a',
+        borderRadius: 6,
+        padding: '6px 12px',
+        fontSize: 12,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap',
+      }}
+    >
+      <span style={{ fontWeight: 700, color: '#854d0e' }}>🏅 {title}</span>
+      {year && (
+        <span style={{ background: '#fef08a', color: '#713f12', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+          {year}
+        </span>
+      )}
+      {auth && <span style={{ color: '#a16207', fontSize: 11 }}>— {auth}</span>}
+    </div>
+  );
+}
 
 export default function MyProfileView() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [scores, setScores] = useState([]);
+  const [cadetSessions, setCadetSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -24,8 +94,12 @@ export default function MyProfileView() {
         const data = await api.getMyCadetProfile();
         setProfile(data);
         if (data?.id) {
-          const s = await api.getCadetScores(data.id);
-          setScores(Array.isArray(s) ? s : []);
+          const [sRes, sessRes] = await Promise.allSettled([
+            api.getCadetScores(data.id),
+            api.getCadetSessions(data.id),
+          ]);
+          setScores(sRes.status === 'fulfilled' && Array.isArray(sRes.value) ? sRes.value : []);
+          setCadetSessions(sessRes.status === 'fulfilled' && Array.isArray(sessRes.value) ? sessRes.value : []);
         }
       }
     } catch (err) {
@@ -43,6 +117,15 @@ export default function MyProfileView() {
     return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [loadProfile]);
 
+  if (loading && !profile && isCadet) {
+    return (
+      <RefreshingBuffer
+        label="Accessing Cadet Military Profile..."
+        subtext="Retrieving authenticated service dossier, camp records, and weapon qualifications"
+      />
+    );
+  }
+
   return (
     <div>
       {/* Page Header */}
@@ -54,9 +137,9 @@ export default function MyProfileView() {
               <span className="dot" />
               <span>AUTHENTICATED SERVICE IDENTITY RECORD</span>
             </div>
-            <h2>Official Military Service Profile</h2>
+            <h2>Official Military Service Profile & Dossier</h2>
             <p>
-              Authorized personal identification, military rank standing, and institutional security clearance details.
+              Authorized personal identification, military rank standing, weapon classifications, and certified mock examination transcripts.
             </p>
           </div>
         </div>
@@ -116,10 +199,10 @@ export default function MyProfileView() {
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--ncc-gold)', textTransform: 'uppercase' }}>
-                {isAdmin ? 'COMMANDING OFFICER (CO)' : isMentor ? 'ASSOCIATE NCC OFFICER (ANO)' : 'ACTIVE CADET (SUO)'}
+                {isAdmin ? 'COMMANDING OFFICER (CO)' : isMentor ? 'ASSOCIATE NCC OFFICER (ANO)' : `CADET RANK: ${profile?.rank || 'CDT'}`}
               </div>
               <h3 style={{ fontSize: 22, color: '#FFF', margin: '4px 0 0' }}>
-                {isCadet ? (profile?.full_name || 'Cadet Priya Sharma') : user?.email?.split('@')[0].toUpperCase() || 'OFFICER IN COMMAND'}
+                {isCadet ? (profile?.full_name || 'Cadet') : user?.email?.split('@')[0].toUpperCase() || 'OFFICER IN COMMAND'}
               </h3>
             </div>
           </div>
@@ -138,7 +221,7 @@ export default function MyProfileView() {
         <div style={{ padding: 28 }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 16,
             marginBottom: 28,
           }}>
@@ -159,14 +242,14 @@ export default function MyProfileView() {
             <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>ATTACHED BATTALION</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
-                3 MP Girls Bn NCC (HQ) • MP & CG Directorate
+                {profile?.battalion_name || '3 MP Girls Bn NCC (HQ)'}
               </div>
             </div>
 
             <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>AFFILIATED INSTITUTION</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
-                Govt Girls Post Graduate College
+                {profile?.college_name || 'Govt Girls Post Graduate College'}
               </div>
             </div>
 
@@ -175,37 +258,176 @@ export default function MyProfileView() {
                 <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>NCC WING & ACADEMIC YEAR</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
-                    Senior Wing (SW) • Year {profile?.academic_year || 2}
+                    {profile?.wing || 'SW'} • Year {profile?.academic_year || 2}
                   </div>
                 </div>
 
                 <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>TRAINING ASPIRATION</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
-                    {profile?.ncc_goal || 'Republic Day Camp (RDC) & Best Cadet'}
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>BLOOD GROUP & DOB</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginTop: 4 }}>
+                    🩸 {profile?.blood_group || 'O+'} • {profile?.dob || '2004-05-15'}
                   </div>
                 </div>
+
+                <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>COMPANY & PLATOON</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
+                    {profile?.company_platoon || 'Alpha Coy / 1 Platoon'}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>PHYSICAL FITNESS (PFT)</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16a34a', marginTop: 4 }}>
+                    💪 {profile?.pft_score || '92/100 (Alpha Excellent)'}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>WEAPON TRAINING CLASSIFICATION</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy-900)', marginTop: 4 }}>
+                    🎯 {profile?.firing_classification || 'Marksman 1st Class'} ({profile?.weapon_grouping || '2.0 cm'})
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>CERTIFICATE QUALIFICATION</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', marginTop: 4 }}>
+                    📜 {profile?.certificate_status || 'Eligible for Certificate C Examination'}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 8 }}>
+                    MILITARY CAMPS ATTENDED & DEPLOYMENTS
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {Array.isArray(profile?.camps_attended) && profile.camps_attended.length > 0 ? (
+                      profile.camps_attended.map(formatCampItem)
+                    ) : (
+                      <span className="badge badge-navy" style={{ fontSize: 12, padding: '4px 10px' }}>
+                        ⛺ Combined Annual Training Camp (CATC 2025)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {Array.isArray(profile?.awards) && profile.awards.length > 0 && (
+                  <div style={{ background: 'var(--bg-main)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 8 }}>
+                      HONOURS, AWARDS & MEDALS
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {profile.awards.map(formatAwardItem)}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
 
           {/* If Cadet: Render 9 Pillars Matrix */}
           {isCadet && (
-            <Panel title="Official 9-Pillar Military Scorecard" tag="ANO RECORD">
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
-                Certified evaluation grades awarded by Associate NCC Officers:
-              </p>
-              <NinePillarsMatrix scores={scores.length > 0 ? scores : [
-                { criterion_name: 'drill', average_score: 9.2, max_score: 10 },
-                { criterion_name: 'physical_fitness', average_score: 8.8, max_score: 10 },
-                { criterion_name: 'communication', average_score: 8.5, max_score: 10 },
-                { criterion_name: 'leadership', average_score: 9.0, max_score: 10 },
-                { criterion_name: 'ncc_knowledge', average_score: 8.4, max_score: 10 },
-                { criterion_name: 'discipline', average_score: 9.6, max_score: 10 },
-                { criterion_name: 'punctuality', average_score: 9.0, max_score: 10 },
-                { criterion_name: 'teamwork', average_score: 8.9, max_score: 10 },
-                { criterion_name: 'attendance', average_score: 9.5, max_score: 10 },
-              ]} />
+            <div style={{ marginBottom: 24 }}>
+              <Panel title="Official 9-Pillar Military Scorecard" tag="ANO RECORD">
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+                  Certified evaluation grades awarded by Associate NCC Officers:
+                </p>
+                <NinePillarsMatrix scores={scores.length > 0 ? scores : [
+                  { criterion_name: 'drill', average_score: 9.2, max_score: 10 },
+                  { criterion_name: 'physical_fitness', average_score: 8.8, max_score: 10 },
+                  { criterion_name: 'communication', average_score: 8.5, max_score: 10 },
+                  { criterion_name: 'leadership', average_score: 9.0, max_score: 10 },
+                  { criterion_name: 'ncc_knowledge', average_score: 8.4, max_score: 10 },
+                  { criterion_name: 'discipline', average_score: 9.6, max_score: 10 },
+                  { criterion_name: 'punctuality', average_score: 9.0, max_score: 10 },
+                  { criterion_name: 'teamwork', average_score: 8.9, max_score: 10 },
+                  { criterion_name: 'attendance', average_score: 9.5, max_score: 10 },
+                ]} />
+              </Panel>
+            </div>
+          )}
+
+          {/* If Cadet: Mock Examination Results & Scorecard History */}
+          {isCadet && (
+            <Panel title={`Mock Examination History (${cadetSessions.length} Attempts)`} tag="EXAM ARCHIVE">
+              {cadetSessions.length === 0 ? (
+                <div className="empty-state-card" style={{ padding: 24 }}>
+                  <div className="empty-state-icon">📝</div>
+                  <div className="empty-state-title">No Mock Exams Taken Yet</div>
+                  <div className="empty-state-text">
+                    Head over to the NCC Mock Test Arena to drill syllabus questions and earn your certified scorecard.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/ncc-mock-tests')}
+                    className="primary"
+                    style={{ fontSize: 12, padding: '8px 16px', marginTop: 12 }}
+                  >
+                    Enter Mock Test Arena ➔
+                  </button>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="data-table" style={{ fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        <th>Session ID</th>
+                        <th>Exam Title / Mode</th>
+                        <th style={{ textAlign: 'center' }}>Score</th>
+                        <th style={{ textAlign: 'center' }}>Accuracy</th>
+                        <th style={{ textAlign: 'center' }}>Status</th>
+                        <th style={{ textAlign: 'right' }}>Date</th>
+                        <th style={{ textAlign: 'right' }}>Scorecard</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cadetSessions.map((s) => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>#{s.id}</td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--navy-900)' }}>{s.title}</div>
+                            <span className="badge badge-navy" style={{ fontSize: 10, marginTop: 2 }}>
+                              {s.mode.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 800, color: '#1d4ed8' }}>
+                            {s.total_score != null ? s.total_score.toFixed(1) : '-'}
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                            {s.accuracy_percentage != null ? `${s.accuracy_percentage.toFixed(1)}%` : '-'}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-saffron'}`} style={{ fontSize: 10 }}>
+                              {s.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                            {s.created_at ? new Date(s.created_at).toLocaleDateString('en-IN') : 'N/A'}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/ncc-mock-tests/results?session=${s.id}`)}
+                              className="secondary"
+                              style={{
+                                fontSize: 11,
+                                padding: '3px 8px',
+                                height: 28,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <span>📄</span> View Scorecard
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Panel>
           )}
 

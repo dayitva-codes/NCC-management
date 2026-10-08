@@ -3,7 +3,19 @@ import { api } from '../api/client';
 import { Field, SelectField, Panel, ErrorBanner } from '../components/Form';
 import CadetProfileModal from '../components/CadetProfileModal';
 import { NccCrest } from '../components/NccLogo';
+import { RefreshingBuffer } from '../components/RefreshingBuffer';
+import { useDataSync } from '../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * LEADERBOARD: BATTALION COMMAND MERIT STANDINGS
+ * ==============================================================================
+ * Ranks all enrolled cadets across battalions by their composite 9-pillar military score:
+ * - Dynamically filters by Battalion and searches by cadet name or regimental number.
+ * - Displays gold/silver/bronze podium for top 3 cadet performers.
+ * - Integrates `useDataSync` to immediately reflect newly entered evaluations in rankings.
+ * ==============================================================================
+ */
 export default function Leaderboard() {
   const [battalionId, setBattalionId] = useState('');
   const [battalions, setBattalions] = useState([]);
@@ -36,10 +48,10 @@ export default function Leaderboard() {
   useEffect(() => {
     loadLeaderboard();
     api.listBattalions().then(setBattalions).catch(() => {});
-    const handleGlobalRefresh = () => loadLeaderboard();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [loadLeaderboard]);
+
+  // Automated sync when evaluations or cadets are updated
+  useDataSync(loadLeaderboard);
 
   const filteredRows = useMemo(() => {
     if (!searchQuery.trim()) return rows;
@@ -61,6 +73,15 @@ export default function Leaderboard() {
       average_score: row.average_score,
     });
     setIsModalOpen(true);
+  }
+
+  if (loading && rows.length === 0) {
+    return (
+      <RefreshingBuffer
+        label="Compiling Directorate Merit Roster..."
+        subtext="Synthesizing multi-wing 9-pillar ratings from database"
+      />
+    );
   }
 
   return (

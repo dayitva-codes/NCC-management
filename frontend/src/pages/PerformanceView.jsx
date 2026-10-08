@@ -3,7 +3,25 @@ import { api } from '../api/client';
 import { Panel, ErrorBanner, SuccessBanner, NinePillarsMatrix } from '../components/Form';
 import { useAuth } from '../context/AuthContext';
 import { NccCrest } from '../components/NccLogo';
+import { RefreshingBuffer } from '../components/RefreshingBuffer';
+import { useDataSync } from '../hooks/useDataSync';
 
+/**
+ * ==============================================================================
+ * PERFORMANCE VIEW: CADET 9-PILLAR MILITARY EVALUATION COMPONENT
+ * ==============================================================================
+ * This component provides dual-mode functionality:
+ * 1. For Cadets: Displays their certified 9-pillar evaluation transcript.
+ * 2. For Officers/ANOs (Mentors & Admins): Provides an interactive evaluation workstation
+ *    where officers rate cadets across the 9 standardized military pillars (Drill,
+ *    Weaponry/Turnout, Esprit de Corps, etc.) using live sliders.
+ *
+ * Performance Optimizations:
+ * - Uses `Promise.all` to submit all 9 criteria concurrently instead of sequential loops.
+ * - Uses `useDataSync` to automatically re-fetch whenever another officer submits scores.
+ * - Renders `RefreshingBuffer` for sleek feedback during database transactions.
+ * ==============================================================================
+ */
 export default function PerformanceView() {
   const { user } = useAuth();
   const [criteria, setCriteria] = useState([]);
@@ -21,6 +39,7 @@ export default function PerformanceView() {
 
   const isCadet = user?.role === 'cadet';
 
+  // Standard 9 Pillars of Military Assessment in the National Cadet Corps
   const defaultParameters = [
     { id: 1, name: 'drill', label: '1. Drill & Parade Precision', max_score: 10 },
     { id: 2, name: 'physical_fitness', label: '2. Physical Fitness & Endurance', max_score: 10 },
@@ -33,11 +52,15 @@ export default function PerformanceView() {
     { id: 9, name: 'attendance', label: '9. Parade & Drill Attendance Rate', max_score: 10 },
   ];
 
+  /**
+   * Load real data from DBMS based on user role
+   */
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       if (isCadet) {
+        // Cadet role: fetch own profile and evaluation record
         const profileData = await api.getMyCadetProfile();
         setMyProfile(profileData);
         if (profileData?.id) {
@@ -45,6 +68,7 @@ export default function PerformanceView() {
           setMyScores(Array.isArray(scoreData) ? scoreData : []);
         }
       } else {
+        // Officer/Admin role: fetch master criteria and active cadets
         const [critRes, cadetsRes] = await Promise.allSettled([
           api.listCriteria(),
           api.listCadets(),
@@ -68,49 +92,70 @@ export default function PerformanceView() {
         setScores(initial);
       }
     } catch (err) {
-      setError(err.message || 'Could not load evaluation data.');
+      setError(err.message || 'Could not load evaluation data from database.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [isCadet, cadetId]);
 
+  // Initial load and automated real-time data sync across browser tabs/components
   useEffect(() => {
     loadData();
-    const handleGlobalRefresh = () => loadData();
-    window.addEventListener('ncc:refresh-data', handleGlobalRefresh);
-    return () => window.removeEventListener('ncc:refresh-data', handleGlobalRefresh);
   }, [loadData]);
+
+  useDataSync(loadData);
 
   function updateScore(criterionId, value) {
     const num = Math.min(10, Math.max(0, parseFloat(value) || 0));
     setScores(prev => ({ ...prev, [criterionId]: num }));
   }
 
+  /**
+   * Submit all 9 criteria evaluations in parallel for blazing-fast response time
+   */
   async function submitAll(e) {
     e.preventDefault();
     if (!cadetId) {
-      setError('Please select a cadet from the list.');
+      setError('Please select a cadet from the muster list.');
       return;
     }
-    setError(''); setSuccess(''); setBusy(true);
+    setError('');
+    setSuccess('');
+    setBusy(true);
+
     try {
       const activeList = criteria.length > 0 ? criteria : defaultParameters;
-      for (const crit of activeList) {
-        const scoreVal = scores[crit.id] !== undefined ? scores[crit.id] : 8.0;
-        await api.submitEvaluation({
-          cadet_id: parseInt(cadetId),
-          criterion_id: crit.id,
-          score: parseFloat(scoreVal),
-          remarks: remarks || `Evaluation recorded for ${crit.name || crit.label}`,
-        });
-      }
-      setSuccess(`9-Pillar evaluation scores recorded successfully for Cadet #${cadetId}.`);
+
+      // Parallel execution via Promise.all: submits all 9 ratings concurrently
+      await Promise.all(
+        activeList.map(crit => {
+          const scoreVal = scores[crit.id] !== undefined ? scores[crit.id] : 8.0;
+          return api.submitEvaluation({
+            cadet_id: parseInt(cadetId, 10),
+            criterion_id: crit.id,
+            score: parseFloat(scoreVal),
+            remarks: remarks || `Evaluation recorded for ${crit.name || crit.label}`,
+          });
+        })
+      );
+
+      setSuccess(`9-Pillar evaluation scores successfully submitted & recorded in DBMS for Cadet #${cadetId}.`);
     } catch (err) {
-      setError(err.message || 'Failed to submit evaluation.');
+      setError(err.message || 'Failed to submit evaluation to database.');
     } finally {
       setBusy(false);
     }
+  }
+
+  // Buffer animation while initial data is being synchronized
+  if (loading && !myProfile && cadets.length === 0) {
+    return (
+      <RefreshingBuffer
+        label="Synchronizing 9-Pillar Military Evaluations..."
+        subtext="Retrieving certified cadet dossiers and battalion scoring matrix from DBMS"
+      />
+    );
   }
 
   // ==========================================

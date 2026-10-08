@@ -9,6 +9,8 @@ supabasepass.txt
 ncc.db
 test_ncc.db
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 

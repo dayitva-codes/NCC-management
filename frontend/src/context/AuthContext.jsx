@@ -23,14 +23,23 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseConfigured || !supabase) {
         if (mounted) setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      if (data.session) await exchangeSupabaseSession(data.session);
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Supabase session timeout')), 1500)
+        );
+        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        if (!error && data?.session) {
+          await exchangeSupabaseSession(data.session);
+        }
+      } catch {
+        // Fall back gracefully to avoid blocking page interactive load
+      }
       if (mounted) setLoading(false);
     }
 

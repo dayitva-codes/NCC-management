@@ -1570,31 +1570,266 @@ tbody tr:hover td {
   box-shadow: var(--shadow-lg);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .podium-grid {
-    grid-template-columns: 1fr;
+/* ==========================================================================
+   Multi-Aspect-Ratio Responsive Engine (Mobile 9:16, Tablet 4:3, Desktop 16:9, Ultrawide 21:9)
+   ========================================================================== */
+
+/* Mobile Nav Toggle Button */
+.mobile-nav-toggle-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--navy-900);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.mobile-nav-toggle-btn:hover {
+  background: var(--bg-subtle);
+}
+
+/* Responsive Table Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+}
+
+/* NCC Mock Test Arena Responsive Classes */
+.ncc-arena-wrapper {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 130px);
+  width: 100%;
+}
+
+.ncc-arena-topbar {
+  background: #0a192f;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 2px solid #1e293b;
+}
+
+.ncc-arena-split {
+  display: flex;
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.ncc-arena-question-pane {
+  flex: 1;
+  min-width: 0;
+  padding: 28px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ncc-arena-palette-pane {
+  width: 320px;
+  min-width: 280px;
+  border-left: 1px solid var(--border);
+  background: #f8fafc;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.ncc-palette-toggle-bar {
+  display: none;
+}
+
+/* --- Breakpoint: Ultra-Wide (21:9 / 32:9 Aspect Ratios, min-width: 1600px) --- */
+@media (min-width: 1600px) {
+  .main-content {
+    max-width: 1560px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* --- Breakpoint: Compact Desktop & Tablet Landscape (max-width: 1080px) --- */
+@media (max-width: 1080px) {
+  .app-shell {
+    grid-template-columns: 240px 1fr;
   }
   .stat-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-}
-
-@media (max-width: 768px) {
-  .app-shell {
+  .podium-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- Breakpoint: Tablet & Mobile (max-width: 900px, 4:3 and Square Ratios) --- */
+@media (max-width: 900px) {
+  .ncc-arena-split {
+    flex-direction: column;
+  }
+  .ncc-arena-palette-pane {
+    width: 100%;
+    min-width: 100%;
+    border-left: none;
+    border-top: 2px solid var(--border);
+  }
+  .ncc-palette-toggle-bar {
+    display: flex;
+  }
+}
+
+/* --- Breakpoint: Mobile Phones (Portrait Aspect Ratio 9:16 / 9:19.5, max-width: 768px) --- */
+@media (max-width: 768px) {
+  .mobile-nav-toggle-btn {
+    display: inline-flex;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    position: relative;
+  }
+
+  /* Off-canvas mobile drawer sidebar */
   .sidebar {
-    height: auto;
-    position: static;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
   }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .main-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
   .top-header {
-    padding: 0 16px;
+    padding: 0 12px;
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
+
+  .header-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-search {
+    display: none; /* Collapse search into mobile modal or icon */
+  }
+
+  .gov-top-bar {
+    display: none; /* Hide institutional micro-header on small phones to save vertical space */
+  }
+
   .main-content {
-    padding: 20px 16px;
+    padding: 16px 12px;
   }
+
   .stat-grid {
     grid-template-columns: 1fr;
   }
+
+  .ncc-arena-question-pane {
+    padding: 16px;
+  }
+
+  .ncc-arena-topbar {
+    padding: 12px 14px;
+  }
+}
+
+/* --- Breakpoint: Ultra-narrow / Foldable Phones (max-width: 420px) --- */
+@media (max-width: 420px) {
+  .ncc-arena-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .unit-badge-pill {
+    max-width: 180px;
+  }
+}
+
+/* ========================================================================= */
+/* Refreshing Buffer & Military Radar Keyframe Animations                    */
+/* ========================================================================= */
+
+@keyframes bufferRadarSweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bufferRadarPulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@keyframes bufferShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.buffer-pulsing-dots::after {
+  content: '...';
+  display: inline-block;
+  animation: bufferDotPulse 1.4s infinite;
+  letter-spacing: 2px;
+}
+
+@keyframes bufferDotPulse {
+  0% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
 }
