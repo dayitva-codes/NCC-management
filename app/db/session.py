@@ -183,6 +183,27 @@ def ensure_db_ready():
                                     conn.commit()
                                 except Exception as alter_err:
                                     logger.debug(f"Column {col_name} migration note: {alter_err}")
+
+                # Auto-Migration for 9-Pillar Evaluation Criteria Custom Parameters & Priorities
+                if "evaluation_criteria" in inspector.get_table_names():
+                    crit_cols = {col["name"] for col in inspector.get_columns("evaluation_criteria")}
+                    new_crit_columns = [
+                        ("label", "VARCHAR"),
+                        ("priority", "VARCHAR DEFAULT 'normal'"),
+                        ("description", "TEXT"),
+                        ("icon", "VARCHAR DEFAULT '🎯'"),
+                        ("category", "VARCHAR DEFAULT 'core'"),
+                        ("created_by_role", "VARCHAR DEFAULT 'admin'"),
+                        ("is_active", "INTEGER DEFAULT 1"),
+                    ]
+                    with engine.connect() as conn:
+                        for col_name, col_type in new_crit_columns:
+                            if col_name not in crit_cols:
+                                try:
+                                    conn.execute(text(f"ALTER TABLE evaluation_criteria ADD COLUMN {col_name} {col_type}"))
+                                    conn.commit()
+                                except Exception as alter_err:
+                                    logger.debug(f"EvaluationCriterion column {col_name} migration note: {alter_err}")
             except Exception as mig_err:
                 logger.warning(f"Schema migration warning: {mig_err}")
 

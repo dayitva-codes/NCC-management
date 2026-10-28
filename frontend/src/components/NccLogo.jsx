@@ -8,7 +8,9 @@ import React from 'react';
  * - Golden Ashoka Lion Capital at the crest
  * - Bold NCC letters & National Motto: 'एकता और अनुशासन' / 'UNITY AND DISCIPLINE'
  */
-export function NccCrest({ size = 48, className = '', showMotto = false }) {
+export function NccCrest({ size = 48, className = '', showMotto = false, style = {} }) {
+  const [imgError, setImgError] = React.useState(false);
+
   return (
     <div
       className={`ncc-crest-wrapper ${className}`}
@@ -17,16 +19,35 @@ export function NccCrest({ size = 48, className = '', showMotto = false }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        flexShrink: 0,
+        ...style,
       }}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 120 120"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}
-      >
+      {!imgError ? (
+        <img
+          src="/ncc-logo.png"
+          alt="CADET-360 Official NCC Crest"
+          width={size}
+          height={Math.round(size * 1.08)}
+          style={{
+            width: size,
+            height: 'auto',
+            maxHeight: Math.round(size * 1.2),
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.2))',
+            display: 'block',
+          }}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 120 120"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}
+        >
         <defs>
           <linearGradient id="nccGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#FDE047" />
@@ -167,6 +188,7 @@ export function NccCrest({ size = 48, className = '', showMotto = false }) {
           </text>
         </g>
       </svg>
+      )}
 
       {showMotto && (
         <span

@@ -45,5 +45,46 @@ def login_with_supabase(payload: SupabaseToken, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    cadet_id = None
+    mentor_id = None
+    full_name = None
+    wing = None
+    rank = None
+    college_name = None
+    battalion_name = None
+
+    if current_user.role.value == "cadet" and current_user.cadet_profile:
+        cadet = current_user.cadet_profile
+        cadet_id = cadet.id
+        full_name = cadet.full_name
+        wing = cadet.wing.value if hasattr(cadet.wing, "value") else str(cadet.wing)
+        rank = cadet.rank
+        if cadet.college:
+            college_name = cadet.college.name
+            if cadet.college.battalion:
+                battalion_name = cadet.college.battalion.name
+    elif current_user.role.value == "mentor" and current_user.mentor_profile:
+        mentor = current_user.mentor_profile
+        mentor_id = mentor.id
+        full_name = mentor.enrollment_number
+        if mentor.college:
+            college_name = mentor.college.name
+        if mentor.battalion:
+            battalion_name = mentor.battalion.name
+
+    return UserOut(
+        id=current_user.id,
+        email=current_user.email,
+        role=current_user.role.value,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified,
+        cadet_id=cadet_id,
+        mentor_id=mentor_id,
+        full_name=full_name,
+        wing=wing,
+        rank=rank,
+        college_name=college_name,
+        battalion_name=battalion_name,
+    )
+

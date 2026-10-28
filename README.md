@@ -1,26 +1,82 @@
-# 🇮🇳 NCC Command & Battalion Management System
+# 🇮🇳 CADET-360: National Cadet Corps Command & Evaluation Platform
 
-> **Next-Gen Cadet & Battalion Operations OS** built with **FastAPI**, **SQLAlchemy**, **Supabase PostgreSQL**, and **React + Vite**. Features a cyber-command glassmorphism interface, strict validation rules, 9-dimensional cadet evaluations, real-time aggregate leaderboards, and AI performance regimens.
+> **CADET-360** is an enterprise-grade Cadet & Battalion Operations OS built with **FastAPI**, **SQLAlchemy**, **Supabase PostgreSQL / SQLite**, and **React + Vite**. Features official NCC branding, 9-dimensional military evaluations with customizable focus priorities, psychometric mock test examinations, Raipur Group battalion-college pairings, and real-time leaderboards.
 
 ---
 
-## ⚡ Quick Start (Single Command)
+## 💻 How to Run on a Different PC (Step-by-Step Setup)
 
-Launch both the **FastAPI Backend (Port 8000)** and **Vite Frontend (Port 5173)** together with a single command from the project root:
+Follow these steps to get CADET-360 running on any new Windows, Mac, or Linux computer:
 
+### 1. Prerequisites
+- **Git**: [git-scm.com](https://git-scm.com/)
+- **Python 3.10+**: [python.org](https://www.python.org/)
+- **Node.js 18+ & npm**: [nodejs.org](https://nodejs.org/)
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/dayitva-codes/NCC-management.git
+cd NCC-management
+```
+
+### 3. Setup Python Virtual Environment & Backend
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Windows (CMD):
+venv\Scripts\activate.bat
+# macOS / Linux:
+source venv/bin/activate
+
+# Install Python backend dependencies
+pip install -r requirements.txt
+```
+
+### 4. Setup Frontend Dependencies
+```bash
+# Install root orchestration dependencies
+npm install
+
+# Install React frontend dependencies
+cd frontend
+npm install
+cd ..
+```
+
+### 5. Configure Environment Variables (`.env`)
+Copy the provided `.env.example` to `.env`:
+```bash
+# Windows:
+copy .env.example .env
+# macOS / Linux:
+cp .env.example .env
+```
+> **Note**: If `DATABASE_URL` is left commented out or points to an offline database, the system **automatically and safely falls back to local SQLite (`ncc.db`)** and seeds all 16 Battalions and 32 Colleges instantly!
+
+### 6. Launch the Application (One Command)
+From the project root:
 ```bash
 npm run dev
 ```
+This concurrently starts:
+- **Backend API Gateway**: `http://127.0.0.1:8000` (FastAPI + Swagger Docs at `/docs`)
+- **Frontend Web UI**: `http://127.0.0.1:5173` (CADET-360 Terminal)
 
-### 🌐 Access URLs
+---
+
+## ⚡ Access URLs
 | Service | URL | Description |
 | :--- | :--- | :--- |
-| **Frontend Terminal** | [http://127.0.0.1:5173](http://127.0.0.1:5173) | Cyber-command user interface |
-| **NCC Mock Test Arena** | [http://127.0.0.1:5173/ncc-mock-tests](http://127.0.0.1:5173/ncc-mock-tests) | Certificate A/B/C exam practice & cadet dossier |
-| **NCC Question Bank Pipeline** | [http://127.0.0.1:5173/ncc-mock-tests/pipeline](http://127.0.0.1:5173/ncc-mock-tests/pipeline) | Psychometric item analysis & CSV importer |
-| **Coding Arena** | [http://127.0.0.1:5173/mock-tests](http://127.0.0.1:5173/mock-tests) | Timed algorithm challenges & editor |
+| **CADET-360 Web Terminal** | [http://127.0.0.1:5173](http://127.0.0.1:5173) | Authentic cadet & officer dashboard |
+| **NCC Mock Test Arena** | [http://127.0.0.1:5173/ncc-mock-tests](http://127.0.0.1:5173/ncc-mock-tests) | Certificate A/B/C exam practice & dossier |
+| **Question Bank Pipeline** | [http://127.0.0.1:5173/ncc-mock-tests/pipeline](http://127.0.0.1:5173/ncc-mock-tests/pipeline) | Psychometric item analysis & CSV pipeline |
 | **Backend API Gateway** | [http://127.0.0.1:8000/api/v1](http://127.0.0.1:8000/api/v1) | FastAPI endpoints & health check |
 | **Interactive Swagger Docs** | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Live API testing & schema docs |
+
 
 ---
 

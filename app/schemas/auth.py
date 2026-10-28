@@ -26,6 +26,14 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     is_verified: bool
+    cadet_id: int | None = None
+    mentor_id: int | None = None
+    full_name: str | None = None
+    wing: str | None = None
+    rank: str | None = None
+    college_name: str | None = None
+    battalion_name: str | None = None
 
     class Config:
         from_attributes = True
+

@@ -9,7 +9,7 @@ from app.db.session import SessionLocal, engine
 
 import app.models
 
-app = FastAPI(title="NCC Battalion Management System", version="1.0.0")
+app = FastAPI(title="CADET-360: National Cadet Corps Command Platform", version="1.0.0")
 
 # Setup CORS origins
 raw_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]

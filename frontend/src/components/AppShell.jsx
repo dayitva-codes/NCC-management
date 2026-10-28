@@ -78,8 +78,8 @@ export default function AppShell() {
           <div className="sidebar-brand" style={{ gap: 14 }}>
             <NccCrest size={44} />
             <div className="brand-title">
-              <h1 style={{ letterSpacing: '0.06em' }}>NCC COMMAND</h1>
-              <span style={{ color: 'var(--text-sidebar)', fontWeight: 600 }}>National Cadet Corps</span>
+              <h1 style={{ letterSpacing: '0.08em', fontWeight: 900 }}>CADET-360</h1>
+              <span style={{ color: 'var(--text-sidebar)', fontWeight: 600 }}>NCC 360° Command & Readiness</span>
             </div>
           </div>
           <div className="motto-bar" style={{ marginTop: 12 }}>

@@ -33,6 +33,23 @@ def list_mentors(
     return query.all()
 
 
+@router.get("/me", response_model=MentorOut)
+def get_my_profile(
+    current_user: User = Depends(require_role("mentor")),
+    db: Session = Depends(get_db),
+):
+    mentor = db.query(Mentor).filter(Mentor.user_id == current_user.id).first()
+    if not mentor:
+        from fastapi import HTTPException
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mentor profile not found")
+    out = MentorOut.model_validate(mentor)
+    if mentor.college:
+        out.college_name = mentor.college.name
+    if mentor.battalion:
+        out.battalion_name = mentor.battalion.name
+    return out
+
+
 @router.post("/{user_id}/verify", status_code=status.HTTP_200_OK)
 def verify(
     user_id: int,
@@ -41,4 +58,5 @@ def verify(
 ):
     mentor_service.verify_mentor(db, user_id)
     return {"detail": "Mentor verified"}
+
 

@@ -1,8 +1,8 @@
 {
-  "name": "ncc-management-root",
+  "name": "cadet-360-root",
   "version": "1.0.0",
   "private": true,
-  "description": "NCC Battalion Management System - Full Stack",
+  "description": "CADET-360: National Cadet Corps Command & 9-Pillar Military Evaluation System",
   "scripts": {
     "dev": "node dev.js",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",

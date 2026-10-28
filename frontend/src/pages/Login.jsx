@@ -75,11 +75,11 @@ export default function Login() {
             <NccCrest size={56} />
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--ncc-gold)', textTransform: 'uppercase' }}>
-                DIRECTORATE GENERAL NCC
+                DIRECTORATE GENERAL NCC • CADET-360
               </div>
-              <h2 style={{ fontSize: 19, color: 'var(--navy-900)' }}>Battalion Command Portal</h2>
+              <h2 style={{ fontSize: 20, color: 'var(--navy-900)', fontWeight: 800, letterSpacing: '0.02em' }}>CADET-360 Command Portal</h2>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-                Ministry of Defence • Govt. of India
+                Ministry of Defence • 360° Military Evaluation System
               </div>
             </div>
           </div>

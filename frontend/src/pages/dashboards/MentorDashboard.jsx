@@ -131,7 +131,7 @@ export default function MentorDashboard() {
           </button>
           <Link to="/performance" className="primary" style={{ textDecoration: 'none', height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span>🎯</span>
-            <span>Record 9-Pillar Scores</span>
+            <span>Evaluate Pillars & Priorities</span>
           </Link>
           <Link to="/attendance" className="secondary" style={{ textDecoration: 'none', height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span>📋</span>
@@ -217,6 +217,52 @@ export default function MentorDashboard() {
           </button>
         </div>
       )}
+
+      {/* CADET-360 Assessment Directive & Priority Control */}
+      <div style={{
+        background: 'linear-gradient(90deg, #1E3A8A 0%, #0F172A 100%)',
+        color: '#FFFFFF',
+        borderRadius: 'var(--radius-md)',
+        padding: '16px 20px',
+        marginBottom: 20,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 14,
+        boxShadow: 'var(--shadow-md)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 28 }}>🎯</span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#FCD34D', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              CADET-360 ASSESSMENT DIRECTIVE
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>
+              Dynamic Multi-Pillar Framework & Focus Priorities Active
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+              Add new military parameters, mark critical areas as "More to Focus" or "Less to Focus", and evaluate assigned cadets.
+            </div>
+          </div>
+        </div>
+        <Link
+          to="/performance"
+          style={{
+            textDecoration: 'none',
+            background: '#F59E0B',
+            color: '#1E293B',
+            fontWeight: 800,
+            fontSize: 12,
+            padding: '8px 16px',
+            borderRadius: 6,
+            border: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ⚙️ Manage Pillars & Priorities →
+        </Link>
+      </div>
 
       {/* Search & Filter Bar */}
       <div style={{

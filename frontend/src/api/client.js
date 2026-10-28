@@ -207,13 +207,20 @@ export const api = {
   getCadetInsight: (id) => apiRequest(`/cadets/${id}/ai-insight`),
 
   registerMentor: (data) => apiRequest('/mentors/register', { method: 'POST', body: data, auth: false }),
+  getMyMentorProfile: () => apiRequest('/mentors/me'),
   listMentors: (params = {}) => {
     const q = new URLSearchParams(params).toString();
     return apiRequest(`/mentors${q ? `?${q}` : ''}`);
   },
   verifyMentor: (userId) => apiRequest(`/mentors/${userId}/verify`, { method: 'POST' }),
 
-  listCriteria: () => apiRequest('/evaluations/criteria', { auth: false }),
+  listCriteria: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return apiRequest(`/evaluations/criteria${q ? `?${q}` : ''}`, { auth: false });
+  },
+  createCriterion: (data) => apiRequest('/evaluations/criteria', { method: 'POST', body: data }),
+  updateCriterion: (id, data) => apiRequest(`/evaluations/criteria/${id}`, { method: 'PUT', body: data }),
+  deleteCriterion: (id) => apiRequest(`/evaluations/criteria/${id}`, { method: 'DELETE' }),
   submitEvaluation: (data) => apiRequest('/evaluations/', { method: 'POST', body: data }),
 
   getLeaderboard: (battalionId, limit = 10) =>

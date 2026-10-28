@@ -19,6 +19,9 @@ class MentorOut(BaseModel):
     scope_level: ScopeLevelEnum
     college_id: int | None
     battalion_id: int | None
+    college_name: str | None = None
+    battalion_name: str | None = None
 
     class Config:
         from_attributes = True
+

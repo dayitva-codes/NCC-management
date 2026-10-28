@@ -44,18 +44,37 @@ def get_cadet_score_summary(db: Session, cadet_id: int) -> list[CadetScoreSummar
     """Average score per criterion for one cadet — feeds both the dashboard and the AI insight."""
     rows = (
         db.query(
+            EvaluationCriterion.id.label("criterion_id"),
             EvaluationCriterion.name,
+            EvaluationCriterion.label,
+            EvaluationCriterion.priority,
+            EvaluationCriterion.icon,
             EvaluationCriterion.max_score,
             func.avg(Evaluation.score).label("avg_score"),
         )
         .join(Evaluation, Evaluation.criterion_id == EvaluationCriterion.id)
         .filter(Evaluation.cadet_id == cadet_id)
-        .group_by(EvaluationCriterion.id, EvaluationCriterion.name, EvaluationCriterion.max_score)
+        .group_by(
+            EvaluationCriterion.id,
+            EvaluationCriterion.name,
+            EvaluationCriterion.label,
+            EvaluationCriterion.priority,
+            EvaluationCriterion.icon,
+            EvaluationCriterion.max_score,
+        )
         .all()
     )
     return [
-        CadetScoreSummary(criterion_name=name, average_score=round(avg_score, 2), max_score=max_score)
-        for name, max_score, avg_score in rows
+        CadetScoreSummary(
+            criterion_id=cid,
+            criterion_name=name,
+            label=label or name.replace("_", " ").title(),
+            priority=priority or "normal",
+            icon=icon or "🎯",
+            average_score=round(avg_score, 2),
+            max_score=max_score,
+        )
+        for cid, name, label, priority, icon, max_score, avg_score in rows
     ]
 
 

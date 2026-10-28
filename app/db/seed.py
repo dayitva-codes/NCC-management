@@ -16,11 +16,83 @@ from app.models.ncc_mock_test import (
     NCCQuestion,
 )
 
-# The 9 core criteria evaluated for every cadet under the NCC doctrine
-DEFAULT_CRITERIA = [
-    "drill", "physical_fitness", "communication", "leadership",
-    "ncc_knowledge", "discipline", "punctuality", "teamwork", "attendance",
+# The 9 core criteria evaluated for every cadet under the NCC doctrine, with priorities
+DEFAULT_CRITERIA_CONFIG = [
+    {
+        "name": "drill",
+        "label": "1. Drill & Parade Precision",
+        "priority": "high",  # More to focus!
+        "icon": "🎖️",
+        "description": "Foot drill, rifle drill, ceremonial parade precision, and squad synchronization.",
+        "category": "core",
+    },
+    {
+        "name": "physical_fitness",
+        "label": "2. Physical Fitness & Endurance",
+        "priority": "high",  # More to focus!
+        "icon": "🏃",
+        "description": "5km battle run, pushups, situps, chin-ups, obstacle negotiation, and physical stamina.",
+        "category": "core",
+    },
+    {
+        "name": "discipline",
+        "label": "3. Discipline & Military Bearing",
+        "priority": "high",  # More to focus!
+        "icon": "🛡️",
+        "description": "Military bearing, saluting, adherence to command orders, kit inspection, and turnout.",
+        "category": "core",
+    },
+    {
+        "name": "leadership",
+        "label": "4. Leadership & Squad Command",
+        "priority": "high",  # More to focus!
+        "icon": "⭐",
+        "description": "Section leading, giving words of command (Awaaz), initiative, and commanding confidence.",
+        "category": "core",
+    },
+    {
+        "name": "ncc_knowledge",
+        "label": "5. NCC Knowledge & Service SOPs",
+        "priority": "normal",  # Standard Focus
+        "icon": "📖",
+        "description": "NCC history, armed forces organizational structure, military geography, and service protocols.",
+        "category": "core",
+    },
+    {
+        "name": "communication",
+        "label": "6. Communication & Briefing Skills",
+        "priority": "normal",  # Standard Focus
+        "icon": "📢",
+        "description": "Verbal debriefing, clarity of orders, lecturette delivery, and situation reporting.",
+        "category": "core",
+    },
+    {
+        "name": "teamwork",
+        "label": "7. Teamwork & Esprit de Corps",
+        "priority": "normal",  # Standard Focus
+        "icon": "🤝",
+        "description": "Section cohesion, mutual support, morale, camaraderie, and collective task execution.",
+        "category": "core",
+    },
+    {
+        "name": "punctuality",
+        "label": "8. Time Punctuality & Turnout",
+        "priority": "low",  # Less to focus (baseline tracking)
+        "icon": "⏱️",
+        "description": "Reporting on parade timing, roll-call punctuality, and personal turnout maintenance.",
+        "category": "core",
+    },
+    {
+        "name": "attendance",
+        "label": "9. Parade & Drill Attendance Rate",
+        "priority": "low",  # Less to focus (baseline tracking)
+        "icon": "📋",
+        "description": "Institutional training parade attendance compliance (75% statutory requirement).",
+        "category": "core",
+    },
 ]
+
+DEFAULT_CRITERIA = [item["name"] for item in DEFAULT_CRITERIA_CONFIG]
 
 def seed(db: Session) -> None:
     """
@@ -28,11 +100,37 @@ def seed(db: Session) -> None:
     Initializes authentic baseline records for Battalions, Colleges, Users, Cadets,
     Evaluation Criteria, Attendance Rolls, and Operational Training Tasks.
     """
-    # 1. 9-Pillars Evaluation Criteria
-    if db.query(EvaluationCriterion).count() == 0:
-        for name in DEFAULT_CRITERIA:
-            db.add(EvaluationCriterion(name=name, max_score=10))
-        db.commit()
+    # 1. 9-Pillars Evaluation Criteria with Priorities
+    existing_criteria = {c.name: c for c in db.query(EvaluationCriterion).all()}
+    for cfg in DEFAULT_CRITERIA_CONFIG:
+        crit = existing_criteria.get(cfg["name"])
+        if not crit:
+            db.add(EvaluationCriterion(
+                name=cfg["name"],
+                label=cfg["label"],
+                priority=cfg["priority"],
+                icon=cfg["icon"],
+                description=cfg["description"],
+                category=cfg["category"],
+                created_by_role="admin",
+                max_score=10,
+                is_active=1,
+            ))
+        else:
+            # Backfill metadata if missing
+            if not getattr(crit, "label", None):
+                crit.label = cfg["label"]
+            if not getattr(crit, "priority", None):
+                crit.priority = cfg["priority"]
+            if not getattr(crit, "icon", None):
+                crit.icon = cfg["icon"]
+            if not getattr(crit, "description", None):
+                crit.description = cfg["description"]
+            if not getattr(crit, "category", None):
+                crit.category = cfg["category"]
+            if getattr(crit, "is_active", None) is None:
+                crit.is_active = 1
+    db.commit()
 
     # 2. Commanding Officer (Admin User)
     admin = db.query(User).filter(User.role == RoleEnum.admin).first()
@@ -55,35 +153,154 @@ def seed(db: Session) -> None:
     if os.environ.get("TESTING") == "1":
         return
 
-    # 3. Battalion & Colleges
+    # 3. Authentic Raipur Group Battalions & Colleges (Parsed from Directorate & College Datasets)
+    raipur_units_data = [
+        {
+            "name": "27 CG Bn NCC, Raipur",
+            "code": "27-CG-BN-RAIPUR",
+            "colleges": [
+                "Govt. Nagarjun PG College of Science, Raipur",
+                "National Institute of Technology (NIT) Raipur",
+                "Rajeev Lochan College, Rajim",
+                "Bhavan's R.K. Sarda Vidya Mandir, Raipur",
+            ],
+        },
+        {
+            "name": "8 CG Girls Bn NCC, Raipur",
+            "code": "8-CG-GIRLS-RAIPUR",
+            "colleges": [
+                "Govt. Dudhadhari Bajrang (D.B.) Girls PG Autonomous College, Raipur",
+                "Shri Shankaracharya Institute of Professional Management and Technology (SSIPMT), Raipur",
+                "Govt Girls Post Graduate College, Raipur",
+            ],
+        },
+        {
+            "name": "7 CG Bn NCC, Bilaspur",
+            "code": "7-CG-BN-BILASPUR",
+            "colleges": [
+                "Govt. E. Raghavendra Rao PG Science College, Bilaspur",
+                "Govt. Bilasa Girls PG College, Bilaspur",
+            ],
+        },
+        {
+            "name": "37 CG Bn NCC, Durg",
+            "code": "37-CG-BN-DURG",
+            "colleges": [
+                "Govt. V.Y.T. PG Autonomous College, Durg",
+                "Bhilai Institute of Technology (BIT), Durg",
+            ],
+        },
+        {
+            "name": "38 CG Bn NCC, Rajnandgaon/Durg",
+            "code": "38-CG-BN-DURG",
+            "colleges": [
+                "SKS College of Agriculture & Research Station (SKS CARS), Rajnandgaon",
+                "Govt. Digvijay Autonomous PG College, Rajnandgaon",
+            ],
+        },
+        {
+            "name": "5 CG CT (I) Coy NCC, Raipur",
+            "code": "5-CG-CT-RAIPUR",
+            "colleges": [
+                "Govt. Nagarjun PG College of Science (Signal Division), Raipur",
+                "Govt. Polytechnic College, Raipur",
+            ],
+        },
+        {
+            "name": "1 CG Naval Unit NCC, Raipur",
+            "code": "1-CG-NAV-RAIPUR",
+            "colleges": [
+                "Govt. J. Yoganandam Chhattisgarh College, Raipur",
+                "Govt. Engineering College (GEC), Raipur",
+            ],
+        },
+        {
+            "name": "3 CG Air Sqn NCC, Raipur",
+            "code": "3-CG-AIR-RAIPUR",
+            "colleges": [
+                "PM SHRI Jawahar Navodaya Vidyalaya, Jashpur (Air Wing)",
+                "Govt. College of Science (Air Squadron Division), Raipur",
+            ],
+        },
+        {
+            "name": "1 CG Girls Bn NCC, Jagdalpur",
+            "code": "1-CG-GIRLS-JDP",
+            "colleges": [
+                "Govt. Engineering College (GEC) Jagdalpur",
+                "Govt. Danteshwari Girls College, Jagdalpur",
+            ],
+        },
+        {
+            "name": "1 CG Bn NCC, Ambikapur",
+            "code": "1-CG-BN-AMB",
+            "colleges": [
+                "Sainik School Ambikapur",
+                "Govt. Rajiv Gandhi PG College, Ambikapur",
+            ],
+        },
+        {
+            "name": "1 CG R&V Regt NCC, Anjora Durg",
+            "code": "1-CG-RV-DURG",
+            "colleges": [
+                "College of Veterinary Science & Animal Husbandry, Anjora, Durg",
+            ],
+        },
+        {
+            "name": "8 CG (I) Coy NCC, Kanker",
+            "code": "8-CG-COY-KANKER",
+            "colleges": [
+                "Govt. Bhanupratap Dev PG College, Kanker",
+            ],
+        },
+        {
+            "name": "9 CG (I) Coy NCC, Jagdalpur",
+            "code": "9-CG-COY-JDP",
+            "colleges": [
+                "Govt. Kakatiya PG College, Jagdalpur",
+            ],
+        },
+        {
+            "name": "10 CG (I) Coy NCC, Jagdalpur",
+            "code": "10-CG-COY-JDP",
+            "colleges": [
+                "Shaheed Mahendra Karma Vishwavidyalaya, Bastar",
+            ],
+        },
+        {
+            "name": "28 CG Bn NCC, Raigarh",
+            "code": "28-CG-BN-RAIGARH",
+            "colleges": [
+                "Kirodimal Govt. Arts & Science College, Raigarh",
+            ],
+        },
+        {
+            "name": "3 MP Girls Bn NCC (HQ)",
+            "code": "3MP-HQ",
+            "colleges": [
+                "Govt Girls Post Graduate College",
+                "Govt Science & Technology College",
+            ],
+        },
+    ]
+
+    for unit in raipur_units_data:
+        b = db.query(Battalion).filter(Battalion.code == unit["code"]).first()
+        if not b:
+            b = Battalion(name=unit["name"], code=unit["code"])
+            db.add(b)
+            db.commit()
+            db.refresh(b)
+        for col_name in unit["colleges"]:
+            c = db.query(College).filter(College.name == col_name, College.battalion_id == b.id).first()
+            if not c:
+                c = College(battalion_id=b.id, name=col_name, academic_year_start=2026)
+                db.add(c)
+                db.commit()
+
     battalion = db.query(Battalion).filter(Battalion.code == "3MP-HQ").first()
-    if not battalion:
-        battalion = Battalion(name="3 MP Girls Bn NCC (HQ)", code="3MP-HQ")
-        db.add(battalion)
-        db.commit()
-        db.refresh(battalion)
-
     college1 = db.query(College).filter(College.name == "Govt Girls Post Graduate College").first()
-    if not college1:
-        college1 = College(
-            battalion_id=battalion.id,
-            name="Govt Girls Post Graduate College",
-            academic_year_start=2026,
-        )
-        db.add(college1)
-        db.commit()
-        db.refresh(college1)
-
     college2 = db.query(College).filter(College.name == "Govt Science & Technology College").first()
-    if not college2:
-        college2 = College(
-            battalion_id=battalion.id,
-            name="Govt Science & Technology College",
-            academic_year_start=2026,
-        )
-        db.add(college2)
-        db.commit()
-        db.refresh(college2)
+
 
     # 4. Associate NCC Officer (Mentor Profile)
     mentor_user = db.query(User).filter(User.email == "mentor1@test.com").first()

@@ -115,7 +115,7 @@ def test_full_system_flow():
     res = client.get(f"/api/v1/cadets/{cadet_id}/scores", headers=mentor_headers)
     assert res.status_code == 200, f"Get cadet scores failed: {res.text}"
     scores = res.json()
-    print(f"   [OK] Cadet scores: {scores}")
+    print(f"   [OK] Cadet scores count: {len(scores)}")
 
     res = client.get(f"/api/v1/leaderboard?battalion_id={battalion_id}", headers=mentor_headers)
     assert res.status_code == 200, f"Leaderboard failed: {res.text}"
@@ -132,10 +132,56 @@ def test_full_system_flow():
     assert res.status_code == 200, f"AI insight failed: {res.text}"
     insight = res.json()
     assert "insight" in insight or "summary" in insight or "strengths" in insight or isinstance(insight, dict)
-    print(f"   [OK] AI insight response: {insight}")
+    print(f"   [OK] AI insight retrieved successfully")
+
+    print("11. Testing Admin and Mentor adding parameters & managing focus priorities...")
+    # Admin adds a custom parameter "Weapon Training & Marksmanship" with "high" priority (More to Focus)
+    res = client.post("/api/v1/evaluations/criteria", headers=admin_headers, json={
+        "name": "weapon_training",
+        "label": "Weapon Training & Marksmanship",
+        "priority": "high",
+        "icon": "🎯",
+        "max_score": 10,
+        "description": "Handling .22 Deluxe Rifle, firing standards, grouping and snap shooting.",
+        "category": "custom"
+    })
+    assert res.status_code in [200, 201], f"Admin failed to create parameter: {res.text}"
+    wt_id = res.json()["id"]
+    assert res.json()["priority"] == "high"
+    print(f"   [OK] Admin added parameter id={wt_id} with priority=high (More to Focus)")
+
+    # Mentor adds a custom parameter "Obstacle Course & Agility"
+    res = client.post("/api/v1/evaluations/criteria", headers=mentor_headers, json={
+        "name": "obstacle_course",
+        "label": "Obstacle Course & Battle Agility",
+        "priority": "high",
+        "icon": "🏃",
+        "max_score": 10,
+        "description": "Clearance of 10 standard military obstacles within target timing.",
+        "category": "custom"
+    })
+    assert res.status_code in [200, 201], f"Mentor failed to create parameter: {res.text}"
+    oc_id = res.json()["id"]
+    print(f"   [OK] Mentor added parameter id={oc_id}")
+
+    # Mentor updates priority of attendance to "low" (Less to Focus)
+    attendance_crit = next(c for c in criteria if c["name"] == "attendance")
+    res = client.put(f"/api/v1/evaluations/criteria/{attendance_crit['id']}", headers=mentor_headers, json={
+        "priority": "low"
+    })
+    assert res.status_code == 200, f"Mentor failed to update priority: {res.text}"
+    assert res.json()["priority"] == "low"
+    print(f"   [OK] Mentor updated priority of attendance to 'low' (Less to Focus)")
+
+    # Verify updated list has both new criteria
+    res = client.get("/api/v1/evaluations/criteria")
+    assert res.status_code == 200
+    all_crit = res.json()
+    assert len(all_crit) >= 11
+    print(f"   [OK] Total criteria now: {len(all_crit)} (original 9 + 2 custom added by Admin and Mentor)")
 
     print("\n==========================================")
-    print("ALL 10 VERIFICATION TESTS PASSED PERFECTLY!")
+    print("ALL 11 VERIFICATION TESTS PASSED PERFECTLY!")
     print("==========================================")
     
     # Clean up test database

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { setApiBase } from '../api/client';
+import { useState, useEffect } from 'react';
+import { setApiBase, api } from '../api/client';
 
 export function StatCard({ label, value, icon, trend, trendLabel, tone = 'primary' }) {
   return (
@@ -262,67 +262,247 @@ export function Modal({ isOpen, onClose, title, children }) {
   );
 }
 
-export function NinePillarsMatrix({ scores = [] }) {
+export function NinePillarsMatrix({ scores = [], criteria: propCriteria = null, showFilter = true }) {
+  const [dbCriteria, setDbCriteria] = useState([]);
+  const [filterPriority, setFilterPriority] = useState('all');
+
   const defaultCriteria = [
-    { name: 'drill', label: 'Drill & Parade Precision', icon: '🎖️' },
-    { name: 'physical_fitness', label: 'Physical Fitness & Endurance', icon: '🏃' },
-    { name: 'communication', label: 'Communication & Briefing', icon: '📢' },
-    { name: 'leadership', label: 'Leadership & Squad Command', icon: '⭐' },
-    { name: 'ncc_knowledge', label: 'NCC Knowledge & SOPs', icon: '📖' },
-    { name: 'discipline', label: 'Discipline & Bearing', icon: '🛡️' },
-    { name: 'time_punctuality', label: 'Time Punctuality', icon: '⏱️' },
-    { name: 'teamwork', label: 'Teamwork & Esprit de Corps', icon: '🤝' },
-    { name: 'attendance', label: 'Parade Attendance', icon: '📋' },
+    { name: 'drill', label: '1. Drill & Parade Precision', icon: '🎖️', priority: 'high', max_score: 10 },
+    { name: 'physical_fitness', label: '2. Physical Fitness & Endurance', icon: '🏃', priority: 'high', max_score: 10 },
+    { name: 'discipline', label: '3. Discipline & Bearing', icon: '🛡️', priority: 'high', max_score: 10 },
+    { name: 'leadership', label: '4. Leadership & Squad Command', icon: '⭐', priority: 'high', max_score: 10 },
+    { name: 'ncc_knowledge', label: '5. NCC Knowledge & SOPs', icon: '📖', priority: 'normal', max_score: 10 },
+    { name: 'communication', label: '6. Communication & Briefing', icon: '📢', priority: 'normal', max_score: 10 },
+    { name: 'teamwork', label: '7. Teamwork & Esprit de Corps', icon: '🤝', priority: 'normal', max_score: 10 },
+    { name: 'punctuality', label: '8. Time Punctuality', icon: '⏱️', priority: 'low', max_score: 10 },
+    { name: 'attendance', label: '9. Parade Attendance', icon: '📋', priority: 'low', max_score: 10 },
   ];
+
+  useEffect(() => {
+    let mounted = true;
+    if (!propCriteria || propCriteria.length === 0) {
+      if (api && api.listCriteria) {
+        api.listCriteria()
+          .then(list => {
+            if (mounted && Array.isArray(list) && list.length > 0) {
+              setDbCriteria(list);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+    return () => { mounted = false; };
+  }, [propCriteria]);
+
+  const activeCriteriaList = (propCriteria && propCriteria.length > 0)
+    ? propCriteria
+    : (dbCriteria.length > 0 ? dbCriteria : defaultCriteria);
 
   const scoreMap = {};
   scores.forEach(s => {
-    scoreMap[s.criterion_name] = s.average_score;
+    if (s.criterion_name) scoreMap[s.criterion_name] = s.average_score;
+    if (s.criterion_id) scoreMap[s.criterion_id] = s.average_score;
+    if (s.name) scoreMap[s.name] = s.average_score !== undefined ? s.average_score : s.score;
+  });
+
+  const getPriorityMeta = (p) => {
+    const norm = (p || '').toLowerCase();
+    if (norm === 'high' || norm === 'more_focus') {
+      return {
+        badge: '🔥 MORE TO FOCUS',
+        badgeClass: 'badge-more-focus',
+        style: { background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', border: '1px solid rgba(245, 158, 11, 0.4)' },
+        border: '1.5px solid #F59E0B',
+        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.12)',
+      };
+    }
+    if (norm === 'low' || norm === 'less_focus') {
+      return {
+        badge: '🌱 LESS TO FOCUS',
+        badgeClass: 'badge-less-focus',
+        style: { background: 'rgba(100, 116, 139, 0.12)', color: '#64748B', border: '1px solid rgba(100, 116, 139, 0.3)' },
+        border: '1px solid var(--border)',
+        boxShadow: 'none',
+      };
+    }
+    return {
+      badge: '⭐ STANDARD FOCUS',
+      badgeClass: 'badge-standard-focus',
+      style: { background: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.3)' },
+      border: '1px solid var(--border)',
+      boxShadow: 'none',
+    };
+  };
+
+  const highCount = activeCriteriaList.filter(c => (c.priority || '').toLowerCase() === 'high' || (c.priority || '').toLowerCase() === 'more_focus').length;
+  const lowCount = activeCriteriaList.filter(c => (c.priority || '').toLowerCase() === 'low' || (c.priority || '').toLowerCase() === 'less_focus').length;
+  const normalCount = activeCriteriaList.length - highCount - lowCount;
+
+  const filteredCriteria = activeCriteriaList.filter(item => {
+    if (filterPriority === 'all') return true;
+    const p = (item.priority || 'normal').toLowerCase();
+    if (filterPriority === 'high') return p === 'high' || p === 'more_focus';
+    if (filterPriority === 'low') return p === 'low' || p === 'less_focus';
+    if (filterPriority === 'normal') return p !== 'high' && p !== 'more_focus' && p !== 'low' && p !== 'less_focus';
+    return true;
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-      {defaultCriteria.map(item => {
-        const val = scoreMap[item.name] !== undefined ? scoreMap[item.name] : 8.0;
-        const pct = Math.min(100, Math.max(0, (val / 10) * 100));
-        const color = val >= 8.5 ? 'var(--success)' : val >= 6.5 ? 'var(--olive-600)' : val >= 5.0 ? 'var(--warning)' : 'var(--danger)';
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {showFilter && activeCriteriaList.length > 4 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            Filter by Focus:
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilterPriority('all')}
+            style={{
+              padding: '4px 10px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: filterPriority === 'all' ? '1px solid var(--navy-900)' : '1px solid var(--border)',
+              background: filterPriority === 'all' ? 'var(--navy-900)' : '#FFFFFF',
+              color: filterPriority === 'all' ? '#FFFFFF' : 'var(--navy-900)',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            All Parameters ({activeCriteriaList.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterPriority('high')}
+            style={{
+              padding: '4px 10px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: filterPriority === 'high' ? '1px solid #D97706' : '1px solid rgba(245, 158, 11, 0.4)',
+              background: filterPriority === 'high' ? '#D97706' : 'rgba(245, 158, 11, 0.1)',
+              color: filterPriority === 'high' ? '#FFFFFF' : '#B45309',
+              cursor: 'pointer',
+              fontWeight: 700,
+            }}
+          >
+            🔥 More to Focus ({highCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterPriority('normal')}
+            style={{
+              padding: '4px 10px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: filterPriority === 'normal' ? '1px solid #2563EB' : '1px solid rgba(59, 130, 246, 0.3)',
+              background: filterPriority === 'normal' ? '#2563EB' : 'rgba(59, 130, 246, 0.08)',
+              color: filterPriority === 'normal' ? '#FFFFFF' : '#1D4ED8',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            ⭐ Standard Focus ({normalCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterPriority('low')}
+            style={{
+              padding: '4px 10px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: filterPriority === 'low' ? '1px solid #475569' : '1px solid rgba(100, 116, 139, 0.3)',
+              background: filterPriority === 'low' ? '#475569' : 'rgba(100, 116, 139, 0.08)',
+              color: filterPriority === 'low' ? '#FFFFFF' : '#475569',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            🌱 Less to Focus ({lowCount})
+          </button>
+        </div>
+      )}
 
-        return (
-          <div key={item.name} style={{
-            background: 'var(--bg-main)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy-900)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{item.icon}</span> {item.label}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color }}>
-                {val.toFixed(1)} <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>/ 10</span>
-              </span>
-            </div>
-            <div style={{
-              width: '100%',
-              height: 6,
-              background: 'var(--border)',
-              borderRadius: 999,
-              overflow: 'hidden'
-            }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+        {filteredCriteria.map(item => {
+          const maxScore = item.max_score || 10;
+          let val = 8.0;
+          if (scoreMap[item.name] !== undefined) val = scoreMap[item.name];
+          else if (scoreMap[item.id] !== undefined) val = scoreMap[item.id];
+          else if (item.average_score !== undefined) val = item.average_score;
+          else if (item.score !== undefined) val = item.score;
+
+          const pct = Math.min(100, Math.max(0, (val / maxScore) * 100));
+          const color = val >= (maxScore * 0.85) ? 'var(--success)' : val >= (maxScore * 0.65) ? 'var(--olive-600)' : val >= (maxScore * 0.5) ? 'var(--warning)' : 'var(--danger)';
+          const meta = getPriorityMeta(item.priority);
+
+          return (
+            <div
+              key={item.id || item.name}
+              style={{
+                background: 'var(--bg-main)',
+                border: meta.border,
+                boxShadow: meta.boxShadow,
+                borderRadius: 'var(--radius-sm)',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                position: 'relative',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy-900)', display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <span style={{ fontSize: 16 }}>{item.icon || '🎯'}</span>
+                  <span>{item.label || item.name.replace(/_/g, ' ').toUpperCase()}</span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 15, color, whiteSpace: 'nowrap' }}>
+                  {Number(val).toFixed(1)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ {maxScore}</span>
+                </span>
+              </div>
+
+              {/* Focus Priority Pill */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    letterSpacing: '0.04em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    ...meta.style,
+                  }}
+                >
+                  {meta.badge}
+                </span>
+                {item.category === 'custom' && (
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    Custom Parameter
+                  </span>
+                )}
+              </div>
+
               <div style={{
-                width: `${pct}%`,
-                height: '100%',
-                background: color,
+                width: '100%',
+                height: 6,
+                background: 'var(--border)',
                 borderRadius: 999,
-                transition: 'width 0.4s ease'
-              }} />
+                overflow: 'hidden',
+                marginTop: 4,
+              }}>
+                <div style={{
+                  width: `${pct}%`,
+                  height: '100%',
+                  background: color,
+                  borderRadius: 999,
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

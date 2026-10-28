@@ -149,8 +149,9 @@ export default function AdminDashboard() {
           <Link to="/battalions" className="secondary" style={{ textDecoration: 'none', height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center' }}>
             <span>🏛️ Battalions</span>
           </Link>
-          <Link to="/performance" className="primary" style={{ textDecoration: 'none', height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center' }}>
-            <span>🎯 9-Pillar Matrix</span>
+          <Link to="/performance" className="primary" style={{ textDecoration: 'none', height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span>🎯</span>
+            <span>CADET-360 Matrix & Priorities</span>
           </Link>
         </div>
       </div>
@@ -248,9 +249,9 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24, marginBottom: 24 }}>
         {/* Left Column: 9-Pillar Benchmark Summary */}
         <Panel
-          title="Battalion 9-Pillar Benchmark"
-          tag="CORE MATRIX"
-          action={<Link to="/performance" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>Full Matrix →</Link>}
+          title="Battalion Multi-Pillar Benchmark & Focus Priorities"
+          tag="CADET-360 MATRIX"
+          action={<Link to="/performance" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>Configure Priorities →</Link>}
         >
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
             Average readiness indices assessed by ANO officers across official National Cadet Corps criteria:

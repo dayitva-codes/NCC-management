@@ -24,3 +24,6 @@ class Mentor(Base):
 
     user = relationship("User", back_populates="mentor_profile")
     evaluations = relationship("Evaluation", back_populates="mentor")
+    college = relationship("College", foreign_keys=[college_id])
+    battalion = relationship("Battalion", foreign_keys=[battalion_id])
+

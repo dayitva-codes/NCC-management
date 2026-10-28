@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../api/client';
-import { Panel, ErrorBanner, SuccessBanner, NinePillarsMatrix } from '../components/Form';
+import { Panel, ErrorBanner, SuccessBanner, NinePillarsMatrix, Modal } from '../components/Form';
 import { useAuth } from '../context/AuthContext';
 import { NccCrest } from '../components/NccLogo';
 import { RefreshingBuffer } from '../components/RefreshingBuffer';
@@ -8,18 +8,18 @@ import { useDataSync } from '../hooks/useDataSync';
 
 /**
  * ==============================================================================
- * PERFORMANCE VIEW: CADET 9-PILLAR MILITARY EVALUATION COMPONENT
+ * CADET-360: MULTI-PILLAR MILITARY EVALUATION & DYNAMIC CRITERIA WORKSTATION
  * ==============================================================================
- * This component provides dual-mode functionality:
- * 1. For Cadets: Displays their certified 9-pillar evaluation transcript.
- * 2. For Officers/ANOs (Mentors & Admins): Provides an interactive evaluation workstation
- *    where officers rate cadets across the 9 standardized military pillars (Drill,
- *    Weaponry/Turnout, Esprit de Corps, etc.) using live sliders.
- *
- * Performance Optimizations:
- * - Uses `Promise.all` to submit all 9 criteria concurrently instead of sequential loops.
- * - Uses `useDataSync` to automatically re-fetch whenever another officer submits scores.
- * - Renders `RefreshingBuffer` for sleek feedback during database transactions.
+ * Features:
+ * 1. For Cadets: Displays certified multi-pillar evaluation transcript with priority indicators.
+ * 2. For Officers/ANOs (Mentors & Admins):
+ *    - Full live assessment workstation across standard and custom pillars.
+ *    - Ability to ADD custom assessment parameters (e.g. Weapon Training, Obstacle Course).
+ *    - Ability to ASSIGN & UPDATE focus priorities:
+ *      * 'high' / 'more_focus' -> 🔥 MORE TO FOCUS (Intensive military focus)
+ *      * 'normal' -> ⭐ STANDARD FOCUS (Core baseline syllabus)
+ *      * 'low' / 'less_focus' -> 🌱 LESS TO FOCUS (Secondary / routine tracking)
+ *    - 1-Click fast priority switcher directly on the evaluation cards.
  * ==============================================================================
  */
 export default function PerformanceView() {
@@ -37,20 +37,42 @@ export default function PerformanceView() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const isCadet = user?.role === 'cadet';
+  // Focus Priority Filter in scoring form
+  const [activeFocusFilter, setActiveFocusFilter] = useState('all');
 
-  // Standard 9 Pillars of Military Assessment in the National Cadet Corps
+  // Modal State for adding/managing parameters
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [actionSuccess, setActionSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+
+  // New Parameter Form State
+  const [newParam, setNewParam] = useState({
+    name: '',
+    label: '',
+    priority: 'high', // Default to 'high' (More to Focus)
+    icon: '🎯',
+    max_score: 10,
+    description: '',
+  });
+
+  const isCadet = user?.role === 'cadet';
+  const isOfficer = user?.role === 'admin' || user?.role === 'mentor';
+
+  // Standard Baseline 9 Pillars
   const defaultParameters = [
-    { id: 1, name: 'drill', label: '1. Drill & Parade Precision', max_score: 10 },
-    { id: 2, name: 'physical_fitness', label: '2. Physical Fitness & Endurance', max_score: 10 },
-    { id: 3, name: 'communication', label: '3. Communication & Briefing Skills', max_score: 10 },
-    { id: 4, name: 'leadership', label: '4. Leadership & Squad Command', max_score: 10 },
-    { id: 5, name: 'ncc_knowledge', label: '5. NCC Knowledge & Service SOPs', max_score: 10 },
-    { id: 6, name: 'discipline', label: '6. Discipline & Military Bearing', max_score: 10 },
-    { id: 7, name: 'punctuality', label: '7. Time Punctuality & Turnout', max_score: 10 },
-    { id: 8, name: 'teamwork', label: '8. Teamwork & Esprit de Corps', max_score: 10 },
-    { id: 9, name: 'attendance', label: '9. Parade & Drill Attendance Rate', max_score: 10 },
+    { id: 1, name: 'drill', label: '1. Drill & Parade Precision', priority: 'high', icon: '🎖️', max_score: 10 },
+    { id: 2, name: 'physical_fitness', label: '2. Physical Fitness & Endurance', priority: 'high', icon: '🏃', max_score: 10 },
+    { id: 3, name: 'discipline', label: '3. Discipline & Bearing', priority: 'high', icon: '🛡️', max_score: 10 },
+    { id: 4, name: 'leadership', label: '4. Leadership & Squad Command', priority: 'high', icon: '⭐', max_score: 10 },
+    { id: 5, name: 'ncc_knowledge', label: '5. NCC Knowledge & SOPs', priority: 'normal', icon: '📖', max_score: 10 },
+    { id: 6, name: 'communication', label: '6. Communication & Briefing', priority: 'normal', icon: '📢', max_score: 10 },
+    { id: 7, name: 'teamwork', label: '7. Teamwork & Esprit de Corps', priority: 'normal', icon: '🤝', max_score: 10 },
+    { id: 8, name: 'punctuality', label: '8. Time Punctuality', priority: 'low', icon: '⏱️', max_score: 10 },
+    { id: 9, name: 'attendance', label: '9. Parade Attendance', priority: 'low', icon: '📋', max_score: 10 },
   ];
+
+  const availableIcons = ['🎯', '🎖️', '🏃', '🧭', '🛡️', '📖', '📢', '🤝', '🏕️', '🚁', '⚓', '🔫', '🪂', '🩺', '📡', '⏱️', '📋', '⭐'];
 
   /**
    * Load real data from DBMS based on user role
@@ -60,25 +82,27 @@ export default function PerformanceView() {
     setError('');
     try {
       if (isCadet) {
-        // Cadet role: fetch own profile and evaluation record
         const profileData = await api.getMyCadetProfile();
         setMyProfile(profileData);
         if (profileData?.id) {
           const scoreData = await api.getCadetScores(profileData.id);
           setMyScores(Array.isArray(scoreData) ? scoreData : []);
         }
+        const critRes = await api.listCriteria().catch(() => []);
+        if (Array.isArray(critRes) && critRes.length > 0) {
+          setCriteria(critRes);
+        }
       } else {
-        // Officer/Admin role: fetch master criteria and active cadets
         const [critRes, cadetsRes] = await Promise.allSettled([
           api.listCriteria(),
           api.listCadets(),
         ]);
 
+        let loadedCriteria = defaultParameters;
         if (critRes.status === 'fulfilled' && Array.isArray(critRes.value) && critRes.value.length > 0) {
-          setCriteria(critRes.value);
-        } else {
-          setCriteria(defaultParameters);
+          loadedCriteria = critRes.value;
         }
+        setCriteria(loadedCriteria);
 
         if (cadetsRes.status === 'fulfilled' && Array.isArray(cadetsRes.value)) {
           setCadets(cadetsRes.value);
@@ -87,9 +111,14 @@ export default function PerformanceView() {
           }
         }
 
-        const initial = {};
-        defaultParameters.forEach(c => { initial[c.id] = 8.5; });
-        setScores(initial);
+        // Initialize score defaults for all criteria
+        setScores(prev => {
+          const initial = { ...prev };
+          loadedCriteria.forEach(c => {
+            if (initial[c.id] === undefined) initial[c.id] = 8.5;
+          });
+          return initial;
+        });
       }
     } catch (err) {
       setError(err.message || 'Could not load evaluation data from database.');
@@ -99,7 +128,6 @@ export default function PerformanceView() {
     }
   }, [isCadet, cadetId]);
 
-  // Initial load and automated real-time data sync across browser tabs/components
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -112,7 +140,7 @@ export default function PerformanceView() {
   }
 
   /**
-   * Submit all 9 criteria evaluations in parallel for blazing-fast response time
+   * Submit evaluations for all criteria in parallel
    */
   async function submitAll(e) {
     e.preventDefault();
@@ -127,7 +155,6 @@ export default function PerformanceView() {
     try {
       const activeList = criteria.length > 0 ? criteria : defaultParameters;
 
-      // Parallel execution via Promise.all: submits all 9 ratings concurrently
       await Promise.all(
         activeList.map(crit => {
           const scoreVal = scores[crit.id] !== undefined ? scores[crit.id] : 8.0;
@@ -135,12 +162,13 @@ export default function PerformanceView() {
             cadet_id: parseInt(cadetId, 10),
             criterion_id: crit.id,
             score: parseFloat(scoreVal),
-            remarks: remarks || `Evaluation recorded for ${crit.name || crit.label}`,
+            remarks: remarks || `Evaluation recorded for ${crit.label || crit.name}`,
           });
         })
       );
 
-      setSuccess(`9-Pillar evaluation scores successfully submitted & recorded in DBMS for Cadet #${cadetId}.`);
+      setSuccess(`CADET-360: Multi-Pillar scores successfully recorded for Cadet #${cadetId} across ${activeList.length} parameters.`);
+      window.dispatchEvent(new CustomEvent('ncc:refresh-data'));
     } catch (err) {
       setError(err.message || 'Failed to submit evaluation to database.');
     } finally {
@@ -148,12 +176,119 @@ export default function PerformanceView() {
     }
   }
 
+  /**
+   * Fast 1-Click Priority Switcher for any parameter
+   */
+  async function handleQuickPriorityChange(critId, newPriority) {
+    try {
+      // Optimistic UI update
+      setCriteria(prev => prev.map(c => c.id === critId ? { ...c, priority: newPriority } : c));
+      await api.updateCriterion(critId, { priority: newPriority });
+      window.dispatchEvent(new CustomEvent('ncc:refresh-data'));
+    } catch (err) {
+      setError(err.message || 'Could not update parameter priority.');
+      loadData();
+    }
+  }
+
+  /**
+   * Add a new assessment parameter to the 9 Pillars
+   */
+  async function handleCreateParameter(e) {
+    e.preventDefault();
+    if (!newParam.label.trim()) {
+      setActionError('Please enter a parameter title (e.g. Weapon Training & Marksmanship).');
+      return;
+    }
+    setActionError('');
+    setActionSuccess('');
+    setActionBusy(true);
+
+    try {
+      const rawName = newParam.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
+      const created = await api.createCriterion({
+        name: rawName || `param_${Date.now()}`,
+        label: newParam.label.trim(),
+        priority: newParam.priority,
+        icon: newParam.icon,
+        max_score: parseInt(newParam.max_score, 10) || 10,
+        description: newParam.description.trim(),
+        category: 'custom',
+      });
+
+      setActionSuccess(`Parameter "${created.label}" added to assessment matrix with priority: ${newParam.priority.toUpperCase()}!`);
+      setNewParam({
+        name: '',
+        label: '',
+        priority: 'high',
+        icon: '🎯',
+        max_score: 10,
+        description: '',
+      });
+
+      // Update local state and trigger global refresh
+      setCriteria(prev => [...prev.filter(c => c.id !== created.id), created]);
+      setScores(prev => ({ ...prev, [created.id]: 8.5 }));
+      window.dispatchEvent(new CustomEvent('ncc:refresh-data'));
+    } catch (err) {
+      setActionError(err.message || 'Failed to add parameter.');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  /**
+   * Delete or deactivate parameter
+   */
+  async function handleDeleteParameter(critId, critName) {
+    if (!window.confirm(`Are you sure you want to delete parameter "${critName}"?`)) return;
+    setActionBusy(true);
+    setActionError('');
+    try {
+      await api.deleteCriterion(critId);
+      setCriteria(prev => prev.filter(c => c.id !== critId));
+      setActionSuccess(`Parameter "${critName}" removed.`);
+      window.dispatchEvent(new CustomEvent('ncc:refresh-data'));
+    } catch (err) {
+      setActionError(err.message || 'Failed to remove parameter.');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  // Active criteria list
+  const activeList = criteria.length > 0 ? criteria : defaultParameters;
+
+  // Counts of each priority
+  const countHigh = activeList.filter(c => (c.priority || '').toLowerCase() === 'high' || (c.priority || '').toLowerCase() === 'more_focus').length;
+  const countLow = activeList.filter(c => (c.priority || '').toLowerCase() === 'low' || (c.priority || '').toLowerCase() === 'less_focus').length;
+  const countNormal = activeList.length - countHigh - countLow;
+
+  // Filtered criteria for scoring
+  const displayedCriteria = useMemo(() => {
+    if (activeFocusFilter === 'all') return activeList;
+    return activeList.filter(c => {
+      const p = (c.priority || 'normal').toLowerCase();
+      if (activeFocusFilter === 'high') return p === 'high' || p === 'more_focus';
+      if (activeFocusFilter === 'low') return p === 'low' || p === 'less_focus';
+      if (activeFocusFilter === 'normal') return p !== 'high' && p !== 'more_focus' && p !== 'low' && p !== 'less_focus';
+      return true;
+    });
+  }, [activeList, activeFocusFilter]);
+
+  // Live average calculation
+  const liveAverage = useMemo(() => {
+    if (activeList.length === 0) return '0.0';
+    const sum = activeList.reduce((acc, crit) => acc + (scores[crit.id] !== undefined ? Number(scores[crit.id]) : 8.5), 0);
+    return (sum / activeList.length).toFixed(1);
+  }, [activeList, scores]);
+
   // Buffer animation while initial data is being synchronized
   if (loading && !myProfile && cadets.length === 0) {
     return (
       <RefreshingBuffer
-        label="Synchronizing 9-Pillar Military Evaluations..."
-        subtext="Retrieving certified cadet dossiers and battalion scoring matrix from DBMS"
+        label="CADET-360: Synchronizing Multi-Pillar Military Evaluations..."
+        subtext="Retrieving certified cadet dossiers, custom parameters, and focus priorities from DBMS"
       />
     );
   }
@@ -174,11 +309,11 @@ export default function PerformanceView() {
             <div>
               <div className="page-eyebrow">
                 <span className="dot" />
-                <span>OFFICIAL CADET PERFORMANCE TRANSCRIPT</span>
+                <span>CADET-360 OFFICIAL EVALUATION TRANSCRIPT</span>
               </div>
-              <h2>My 9-Pillar Military Evaluation</h2>
+              <h2>My Multi-Pillar Military Evaluation</h2>
               <p>
-                Official certified scores recorded by your Associate NCC Officer (ANO) across core military proficiencies.
+                Official certified scores recorded by your Associate NCC Officer (ANO) with active military focus priorities.
               </p>
             </div>
           </div>
@@ -210,22 +345,25 @@ export default function PerformanceView() {
 
         <ErrorBanner message={error} />
 
-        <Panel title="9-Pillar Military Readiness Breakdown" tag="CERTIFIED RATINGS">
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
-            Read-only certified record for {myProfile?.full_name || 'Cadet'} ({myProfile?.enrollment_number || 'Registered Cadet'}).
-          </p>
+        <Panel title="Military Readiness & Focus Breakdown" tag="CADET-360 TRANSCRIPT">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              Certified record for <strong>{myProfile?.full_name || 'Cadet'}</strong> ({myProfile?.enrollment_number || 'Registered Cadet'}).
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                🔥 {countHigh} More to Focus
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                ⭐ {countNormal} Standard
+              </span>
+            </div>
+          </div>
 
-          <NinePillarsMatrix scores={myScores.length > 0 ? myScores : [
-            { criterion_name: 'drill', average_score: 9.2, max_score: 10 },
-            { criterion_name: 'physical_fitness', average_score: 8.8, max_score: 10 },
-            { criterion_name: 'communication', average_score: 8.5, max_score: 10 },
-            { criterion_name: 'leadership', average_score: 9.0, max_score: 10 },
-            { criterion_name: 'ncc_knowledge', average_score: 8.4, max_score: 10 },
-            { criterion_name: 'discipline', average_score: 9.6, max_score: 10 },
-            { criterion_name: 'punctuality', average_score: 9.0, max_score: 10 },
-            { criterion_name: 'teamwork', average_score: 8.9, max_score: 10 },
-            { criterion_name: 'attendance', average_score: 9.5, max_score: 10 },
-          ]} />
+          <NinePillarsMatrix
+            scores={myScores}
+            criteria={criteria.length > 0 ? criteria : defaultParameters}
+          />
 
           <div style={{
             marginTop: 24,
@@ -255,33 +393,74 @@ export default function PerformanceView() {
   }
 
   // ==========================================
-  // VIEW 2: MENTOR & ADMIN EVALUATION STATION
+  // VIEW 2: OFFICER (ADMIN & MENTOR) WORKSTATION
   // ==========================================
-  const activeList = criteria.length > 0 ? criteria : defaultParameters;
-  const scoreVals = Object.values(scores);
-  const liveAverage = scoreVals.length > 0
-    ? (scoreVals.reduce((a, b) => a + Number(b), 0) / scoreVals.length).toFixed(1)
-    : '8.5';
-
   return (
     <div>
-      {/* Header */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
           <NccCrest size={48} />
           <div>
             <div className="page-eyebrow">
               <span className="dot" />
-              <span>9-PARAMETER OFFICER ASSESSMENT WORKSTATION</span>
+              <span>CADET-360 • OFFICER ASSESSMENT WORKSTATION</span>
             </div>
-            <h2>Cadet 9-Pillar Evaluation & Scoring</h2>
+            <h2>Multi-Pillar Evaluation & Focus Priorities</h2>
             <p>
-              Assess assigned cadets across 9 standardized NCC evaluation pillars with live score synthesis and tactical remarks.
+              Evaluate cadets across {activeList.length} criteria with configured focus priorities (More to Focus / Less to Focus).
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Parameter & Priority Control Buttons for Admin & Mentor */}
+          {isOfficer && (
+            <>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setActionError('');
+                  setActionSuccess('');
+                  setIsManageModalOpen(true);
+                }}
+                style={{
+                  height: 38,
+                  padding: '0 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                <span>⚙️</span>
+                <span>Configure Priorities & Pillars</span>
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  setActionError('');
+                  setActionSuccess('');
+                  setIsManageModalOpen(true);
+                }}
+                style={{
+                  height: 38,
+                  padding: '0 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                <span>+</span>
+                <span>Add Parameter</span>
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             className={`refresh-btn ${refreshing ? 'spinning' : ''}`}
@@ -289,8 +468,9 @@ export default function PerformanceView() {
             disabled={busy || refreshing}
           >
             <span className="refresh-icon">🔄</span>
-            <span>{refreshing ? 'Updating…' : 'Refresh Form'}</span>
+            <span>{refreshing ? 'Updating…' : 'Refresh'}</span>
           </button>
+
           <div style={{
             background: '#FFFFFF',
             border: '1px solid var(--border)',
@@ -308,6 +488,79 @@ export default function PerformanceView() {
 
       <ErrorBanner message={error} />
       <SuccessBanner message={success} />
+
+      {/* Focus Priority Overview Banner */}
+      <div style={{
+        background: '#FFFFFF',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '12px 16px',
+        marginBottom: 18,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12,
+        boxShadow: 'var(--shadow-card)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>
+            CURRENT BATTALION FOCUS DIRECTIVE:
+          </span>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 800,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: 'rgba(245, 158, 11, 0.15)',
+            color: '#D97706',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            🔥 {countHigh} Pillars More to Focus
+          </span>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 700,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: 'rgba(59, 130, 246, 0.1)',
+            color: '#2563EB',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+          }}>
+            ⭐ {countNormal} Standard Pillars
+          </span>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 700,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: 'rgba(100, 116, 139, 0.12)',
+            color: '#64748B',
+            border: '1px solid rgba(100, 116, 139, 0.3)',
+          }}>
+            🌱 {countLow} Less to Focus
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsManageModalOpen(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--olive-700)',
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          Adjust Focus Targets & Add Parameters →
+        </button>
+      </div>
 
       <form onSubmit={submitAll}>
         {/* Cadet Selection Strip */}
@@ -348,25 +601,185 @@ export default function PerformanceView() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="badge badge-olive">OFFICER CLEARANCE ACTIVE</span>
+            <span className="badge badge-olive">OFFICER CLEARANCE: {user?.role?.toUpperCase()}</span>
           </div>
         </div>
 
-        {/* 9 Pillars Slider Grid */}
-        <Panel title="Evaluate Standard Pillars (1 to 10 Scale)" tag="9-PILLAR MATRIX">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 24 }}>
-            {activeList.map(crit => {
+        {/* Multi-Pillar Slider Grid */}
+        <Panel
+          title="Cadet Military Evaluation Sliders"
+          tag={`TOTAL: ${activeList.length} PARAMETERS`}
+          subtitle="Rate cadet across each pillar. Sliders marked 'MORE TO FOCUS' represent the Commanding Officer's high-priority training vectors."
+        >
+          {/* Quick Filter Bar for Evaluator */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>VIEW:</span>
+            <button
+              type="button"
+              onClick={() => setActiveFocusFilter('all')}
+              style={{
+                padding: '4px 12px',
+                fontSize: 12,
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: activeFocusFilter === 'all' ? '1px solid var(--navy-900)' : '1px solid var(--border)',
+                background: activeFocusFilter === 'all' ? 'var(--navy-900)' : '#FFFFFF',
+                color: activeFocusFilter === 'all' ? '#FFFFFF' : 'var(--navy-900)',
+              }}
+            >
+              All ({activeList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFocusFilter('high')}
+              style={{
+                padding: '4px 12px',
+                fontSize: 12,
+                borderRadius: 6,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: activeFocusFilter === 'high' ? '1px solid #D97706' : '1px solid rgba(245, 158, 11, 0.4)',
+                background: activeFocusFilter === 'high' ? '#D97706' : 'rgba(245, 158, 11, 0.1)',
+                color: activeFocusFilter === 'high' ? '#FFFFFF' : '#B45309',
+              }}
+            >
+              🔥 More to Focus ({countHigh})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFocusFilter('normal')}
+              style={{
+                padding: '4px 12px',
+                fontSize: 12,
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: activeFocusFilter === 'normal' ? '1px solid #2563EB' : '1px solid rgba(59, 130, 246, 0.3)',
+                background: activeFocusFilter === 'normal' ? '#2563EB' : 'rgba(59, 130, 246, 0.08)',
+                color: activeFocusFilter === 'normal' ? '#FFFFFF' : '#1D4ED8',
+              }}
+            >
+              ⭐ Standard Focus ({countNormal})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFocusFilter('low')}
+              style={{
+                padding: '4px 12px',
+                fontSize: 12,
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: activeFocusFilter === 'low' ? '1px solid #475569' : '1px solid rgba(100, 116, 139, 0.3)',
+                background: activeFocusFilter === 'low' ? '#475569' : 'rgba(100, 116, 139, 0.08)',
+                color: activeFocusFilter === 'low' ? '#FFFFFF' : '#475569',
+              }}
+            >
+              🌱 Less to Focus ({countLow})
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
+            {displayedCriteria.map(crit => {
               const val = scores[crit.id] !== undefined ? scores[crit.id] : 8.5;
               const name = crit.label || crit.name.replace(/_/g, ' ').toUpperCase();
+              const p = (crit.priority || 'normal').toLowerCase();
+              const isHigh = p === 'high' || p === 'more_focus';
+              const isLow = p === 'low' || p === 'less_focus';
 
               return (
-                <div key={crit.id} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
-                    <span style={{ fontWeight: 700, color: 'var(--navy-900)' }}>{name}</span>
-                    <span style={{ fontWeight: 800, color: 'var(--olive-700)', fontFamily: 'var(--font-mono)' }}>
-                      {Number(val).toFixed(1)} / 10
+                <div
+                  key={crit.id}
+                  style={{
+                    background: isHigh ? 'linear-gradient(180deg, #FFFFFF 0%, #FFFBEB 100%)' : 'var(--bg-main)',
+                    border: isHigh ? '2px solid #F59E0B' : '1px solid var(--border)',
+                    boxShadow: isHigh ? '0 4px 14px rgba(245, 158, 11, 0.15)' : 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: 14,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 16 }}>{crit.icon || '🎯'}</span>
+                        <span style={{ fontWeight: 800, color: 'var(--navy-900)', fontSize: 13 }}>{name}</span>
+                      </div>
+                      {crit.description && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.3 }}>
+                          {crit.description}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ fontWeight: 800, color: isHigh ? '#B45309' : 'var(--olive-700)', fontFamily: 'var(--font-mono)', fontSize: 16, whiteSpace: 'nowrap' }}>
+                      {Number(val).toFixed(1)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 10</span>
                     </span>
                   </div>
+
+                  {/* Priority Status & 1-Click Fast Switcher for Officer */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 4, borderTop: '1px dashed var(--border)' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      FOCUS PRIORITY:
+                    </span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        type="button"
+                        title="Set as More to Focus"
+                        onClick={() => handleQuickPriorityChange(crit.id, 'high')}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: isHigh ? '1px solid #D97706' : '1px solid rgba(245, 158, 11, 0.3)',
+                          background: isHigh ? '#D97706' : '#FFFFFF',
+                          color: isHigh ? '#FFFFFF' : '#B45309',
+                        }}
+                      >
+                        🔥 More to Focus
+                      </button>
+                      <button
+                        type="button"
+                        title="Set as Standard Focus"
+                        onClick={() => handleQuickPriorityChange(crit.id, 'normal')}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: 10,
+                          fontWeight: 600,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: (!isHigh && !isLow) ? '1px solid #2563EB' : '1px solid rgba(59, 130, 246, 0.3)',
+                          background: (!isHigh && !isLow) ? '#2563EB' : '#FFFFFF',
+                          color: (!isHigh && !isLow) ? '#FFFFFF' : '#2563EB',
+                        }}
+                      >
+                        ⭐ Standard
+                      </button>
+                      <button
+                        type="button"
+                        title="Set as Less to Focus"
+                        onClick={() => handleQuickPriorityChange(crit.id, 'low')}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: 10,
+                          fontWeight: 600,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: isLow ? '1px solid #475569' : '1px solid rgba(100, 116, 139, 0.3)',
+                          background: isLow ? '#475569' : '#FFFFFF',
+                          color: isLow ? '#FFFFFF' : '#64748B',
+                        }}
+                      >
+                        🌱 Less
+                      </button>
+                    </div>
+                  </div>
+
                   <input
                     type="range"
                     min="1"
@@ -374,7 +787,12 @@ export default function PerformanceView() {
                     step="0.5"
                     value={val}
                     onChange={e => updateScore(crit.id, e.target.value)}
-                    style={{ width: '100%', accentColor: 'var(--olive-700)' }}
+                    style={{
+                      width: '100%',
+                      accentColor: isHigh ? '#D97706' : 'var(--olive-700)',
+                      cursor: 'pointer',
+                      marginTop: 4,
+                    }}
                   />
                 </div>
               );
@@ -391,7 +809,7 @@ export default function PerformanceView() {
               rows={3}
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
-              placeholder="e.g. Excellent pace-stick alignment in ceremonial drill; recommended for Best Cadet trial."
+              placeholder="e.g. Cadet displayed sharp salute alignment in ceremonial drill; marked for Best Cadet trials. Squad leadership requires additional command voice projection."
               style={{ width: '100%', fontSize: 13, padding: 10 }}
             />
           </div>
@@ -400,12 +818,253 @@ export default function PerformanceView() {
             type="submit"
             className="primary"
             disabled={busy || cadets.length === 0}
-            style={{ height: 42, width: '100%', fontSize: 14 }}
+            style={{ height: 44, width: '100%', fontSize: 14, fontWeight: 700 }}
           >
-            {busy ? 'SYNCHRONIZING SCORES WITH BATTALION COMMAND…' : '✓ SAVE & SUBMIT 9-PILLAR EVALUATION'}
+            {busy ? 'SYNCHRONIZING SCORES WITH BATTALION COMMAND…' : `✓ SAVE & SUBMIT CADET-360 EVALUATION (${activeList.length} PARAMETERS)`}
           </button>
         </Panel>
       </form>
+
+      {/* =========================================================================
+          MODAL: CONFIGURE PILLARS & ADD CUSTOM PARAMETERS (ADMIN & MENTOR)
+          ========================================================================= */}
+      <Modal
+        isOpen={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
+        title="CADET-360: Manage Pillars & Focus Priorities"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {actionError && <ErrorBanner message={actionError} />}
+          {actionSuccess && <SuccessBanner message={actionSuccess} />}
+
+          {/* Add New Parameter Card */}
+          <div style={{
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            padding: 16,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 18 }}>➕</span>
+              <h4 style={{ margin: 0, fontSize: 14, color: 'var(--navy-900)' }}>
+                Add New Assessment Parameter to 9 Pillars
+              </h4>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+              Commanding Officers and ANO Mentors can introduce specialized training metrics (e.g. Marksmanship, Obstacle Course, Map Reading) and set their evaluation focus.
+            </p>
+
+            <form onSubmit={handleCreateParameter}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    PARAMETER TITLE *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Weapon Training & Firing"
+                    value={newParam.label}
+                    onChange={e => setNewParam({ ...newParam, label: e.target.value })}
+                    style={{ width: '100%', height: 36, fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    FOCUS PRIORITY *
+                  </label>
+                  <select
+                    value={newParam.priority}
+                    onChange={e => setNewParam({ ...newParam, priority: e.target.value })}
+                    style={{ width: '100%', height: 36, fontSize: 13 }}
+                  >
+                    <option value="high">🔥 MORE TO FOCUS (High Priority)</option>
+                    <option value="normal">⭐ STANDARD FOCUS (Medium Priority)</option>
+                    <option value="low">🌱 LESS TO FOCUS (Low Priority)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    MAX SCORE
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="100"
+                    value={newParam.max_score}
+                    onChange={e => setNewParam({ ...newParam, max_score: e.target.value })}
+                    style={{ width: '100%', height: 36, fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    TACTICAL ICON
+                  </label>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {availableIcons.map(ic => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setNewParam({ ...newParam, icon: ic })}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          fontSize: 16,
+                          borderRadius: 4,
+                          border: newParam.icon === ic ? '2px solid var(--navy-900)' : '1px solid var(--border)',
+                          background: newParam.icon === ic ? '#E2E8F0' : '#FFFFFF',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                  GUIDANCE / TACTICAL SCOPE DESCRIPTION
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Assessment on handling .22 Deluxe Rifle, grouping on 25m target, and stoppages drill."
+                  value={newParam.description}
+                  onChange={e => setNewParam({ ...newParam, description: e.target.value })}
+                  style={{ width: '100%', height: 36, fontSize: 13 }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="primary"
+                disabled={actionBusy}
+                style={{ height: 36, padding: '0 18px', fontSize: 12, fontWeight: 700 }}
+              >
+                {actionBusy ? 'Adding to Database…' : '+ Add Parameter to Framework'}
+              </button>
+            </form>
+          </div>
+
+          {/* List & Priority Configuration of All Parameters */}
+          <div>
+            <h4 style={{ fontSize: 13, color: 'var(--navy-900)', marginBottom: 10 }}>
+              Current Framework Parameters ({activeList.length}) & Priorities:
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
+              {activeList.map(item => {
+                const p = (item.priority || 'normal').toLowerCase();
+                const isHigh = p === 'high' || p === 'more_focus';
+                const isLow = p === 'low' || p === 'less_focus';
+                const isCustom = item.category === 'custom';
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      background: isHigh ? 'rgba(245, 158, 11, 0.08)' : '#FFFFFF',
+                      border: isHigh ? '1px solid #F59E0B' : '1px solid var(--border)',
+                      borderRadius: 6,
+                      gap: 12,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 240px' }}>
+                      <span style={{ fontSize: 18 }}>{item.icon || '🎯'}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy-900)' }}>
+                          {item.label || item.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {isCustom ? `Custom Parameter • Max ${item.max_score} pts` : `Core Pillar • Max ${item.max_score} pts`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickPriorityChange(item.id, 'high')}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: isHigh ? '1px solid #D97706' : '1px solid rgba(245, 158, 11, 0.4)',
+                          background: isHigh ? '#D97706' : '#FFFFFF',
+                          color: isHigh ? '#FFFFFF' : '#B45309',
+                        }}
+                      >
+                        🔥 More to Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickPriorityChange(item.id, 'normal')}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: (!isHigh && !isLow) ? '1px solid #2563EB' : '1px solid rgba(59, 130, 246, 0.3)',
+                          background: (!isHigh && !isLow) ? '#2563EB' : '#FFFFFF',
+                          color: (!isHigh && !isLow) ? '#FFFFFF' : '#2563EB',
+                        }}
+                      >
+                        ⭐ Standard Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickPriorityChange(item.id, 'low')}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          border: isLow ? '1px solid #475569' : '1px solid rgba(100, 116, 139, 0.3)',
+                          background: isLow ? '#475569' : '#FFFFFF',
+                          color: isLow ? '#FFFFFF' : '#64748B',
+                        }}
+                      >
+                        🌱 Less to Focus
+                      </button>
+
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteParameter(item.id, item.label || item.name)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            borderRadius: 4,
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            background: '#FEE2E2',
+                            color: '#991B1B',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
