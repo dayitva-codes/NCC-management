@@ -127,6 +127,7 @@ export const NAVIGATION_CONFIG = {
       badge: 'AI LAB',
       items: [
         { label: 'NCC Mock Test Arena', path: '/ncc-mock-tests', icon: '🎯', permission: 'mock_tests.view' },
+        { label: 'Student Exam Analytics', path: '/ncc-mock-tests/analytics', icon: '📈', permission: 'mock_tests.view' },
         { label: 'Question Bank Pipeline', path: '/ncc-mock-tests/pipeline', icon: '📊', permission: 'mock_tests.view' },
         { label: 'AI Performance Insights', path: '/ai-suite', icon: '🤖', permission: 'ai_suite.view_mentor' },
         { label: 'Books & Syllabus Library', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },
@@ -176,6 +177,7 @@ export const NAVIGATION_CONFIG = {
       badge: 'GEN AI',
       items: [
         { label: 'NCC Mock Test Arena', path: '/ncc-mock-tests', icon: '🎯', permission: 'mock_tests.view' },
+        { label: 'Student Exam Analytics', path: '/ncc-mock-tests/analytics', icon: '📈', permission: 'mock_tests.view' },
         { label: 'Question Bank Pipeline', path: '/ncc-mock-tests/pipeline', icon: '📊', permission: 'mock_tests.view' },
         { label: 'AI Command Suite', path: '/ai-suite', icon: '🤖', permission: 'ai_suite.manage' },
         { label: 'Books & Syllabus Library', path: '/knowledge', icon: '📚', permission: 'knowledge.view' },

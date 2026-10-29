@@ -477,13 +477,22 @@ export default function MentorDashboard() {
             </div>
           </div>
 
-          <Link
-            to="/ncc-mock-tests/pipeline"
-            className="secondary"
-            style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <span>🎯</span> Open Question Pipeline & Full Audit ➔
-          </Link>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link
+              to="/ncc-mock-tests/analytics"
+              className="primary"
+              style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, background: '#166534' }}
+            >
+              <span>📈</span> Student Exam Analytics & Results ➔
+            </Link>
+            <Link
+              to="/ncc-mock-tests/pipeline"
+              className="secondary"
+              style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span>⚙️</span> Question Pipeline
+            </Link>
+          </div>
         </div>
 
         {recentExams.length === 0 ? (

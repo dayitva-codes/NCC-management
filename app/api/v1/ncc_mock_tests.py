@@ -425,6 +425,16 @@ def get_officer_overview(
     return ncc_mock_test_service.get_officer_exam_overview(db)
 
 
+@router.get("/analytics/cadet/{cadet_id}")
+def get_cadet_analytics_by_id(
+    cadet_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "mentor", "co", "co_admin")),
+):
+    """(Officers & Admins) Deep-dive analysis for an individual cadet."""
+    return ncc_mock_test_service.get_cadet_analytics_by_cadet_id(db, cadet_id=cadet_id)
+
+
 
 @router.delete("/admin/sessions/{session_id}")
 def admin_delete_session(

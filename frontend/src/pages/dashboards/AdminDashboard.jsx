@@ -331,9 +331,15 @@ export default function AdminDashboard() {
           title="Directorate Mock Examination Results & Cadet Performance"
           tag="EXAM COMMAND"
           action={
-            <Link to="/ncc-mock-tests/pipeline" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>
-              Open Full Exam Pipeline ➔
-            </Link>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Link to="/ncc-mock-tests/analytics" style={{ fontSize: 12, fontWeight: 800, color: '#166534' }}>
+                📈 Student Exam Analytics & Results ➔
+              </Link>
+              <span style={{ color: 'var(--border)' }}>|</span>
+              <Link to="/ncc-mock-tests/pipeline" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-900)' }}>
+                ⚙️ Exam Pipeline
+              </Link>
+            </div>
           }
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>

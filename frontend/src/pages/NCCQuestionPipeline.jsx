@@ -467,7 +467,27 @@ export default function NCCQuestionPipeline() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/ncc-mock-tests/analytics')}
+              style={{
+                background: '#166534',
+                color: '#fff',
+                padding: '7px 16px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+              }}
+            >
+              <span>📈 Student Results & Analytics Dashboard →</span>
+            </button>
             <span
               style={{
                 background: isAdmin ? '#059669' : '#d97706',

@@ -4,7 +4,7 @@ import random
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from app.models.ncc_mock_test import (
@@ -1149,20 +1149,148 @@ def get_cadet_test_sessions(db: Session, cadet_id: int) -> List[CadetSessionAdmi
     return items
 
 
+def get_cadet_analytics_by_cadet_id(db: Session, cadet_id: int) -> dict:
+    """Retrieve full performance diagnostics and radar profile for a specific cadet."""
+    c = db.query(Cadet).filter(Cadet.id == cadet_id).first()
+    if not c:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cadet not found")
+    data = get_cadet_analytics(db, user_id=c.user_id)
+    college = db.query(College).filter(College.id == c.college_id).first() if c.college_id else None
+    data["cadet"] = {
+        "id": c.id,
+        "full_name": c.full_name,
+        "enrollment_number": c.enrollment_number,
+        "rank": c.rank or "CDT",
+        "wing": _enum_val(c.wing, "SD"),
+        "college_name": college.name if college else "Battalion Affiliated",
+    }
+    return data
+
+
 def get_officer_exam_overview(db: Session) -> dict:
-    """Return summary statistics of cadet exam outcomes for Officers and Administrators."""
+    """Return summary statistics and comprehensive analytics of cadet exam outcomes for Officers and Administrators."""
     total_sessions = db.query(NCCTestSession).count()
     completed = db.query(NCCTestSession).filter(NCCTestSession.status == NCCTestStatusEnum.completed).all()
     completed_count = len(completed)
     avg_score = round(sum((s.total_score or 0.0) for s in completed) / completed_count, 1) if completed_count > 0 else 0.0
     avg_accuracy = round(sum((s.accuracy_percentage or 0.0) for s in completed) / completed_count, 1) if completed_count > 0 else 0.0
 
-    recent_sessions, _ = admin_list_sessions(db, limit=8)
+    distinction_count = sum(1 for s in completed if (s.accuracy_percentage or 0.0) >= 75.0)
+    pass_count = sum(1 for s in completed if 50.0 <= (s.accuracy_percentage or 0.0) < 75.0)
+    fail_count = sum(1 for s in completed if (s.accuracy_percentage or 0.0) < 50.0)
+    pass_rate_pct = round((distinction_count + pass_count) / completed_count * 100.0, 1) if completed_count > 0 else 0.0
+
+    # Mode breakdown
+    mode_counts = {}
+    for s in completed:
+        m_val = _enum_val(s.mode, "quick_practice")
+        if m_val not in mode_counts:
+            mode_counts[m_val] = {"count": 0, "scores": [], "accuracies": []}
+        mode_counts[m_val]["count"] += 1
+        if s.total_score is not None:
+            mode_counts[m_val]["scores"].append(s.total_score)
+        if s.accuracy_percentage is not None:
+            mode_counts[m_val]["accuracies"].append(s.accuracy_percentage)
+
+    mode_breakdown = [
+        {
+            "mode": m,
+            "count": d["count"],
+            "avg_score": round(sum(d["scores"]) / len(d["scores"]), 1) if d["scores"] else 0.0,
+            "avg_accuracy": round(sum(d["accuracies"]) / len(d["accuracies"]), 1) if d["accuracies"] else 0.0,
+        }
+        for m, d in mode_counts.items()
+    ]
+
+    # Topic performance across all students
+    topics = db.query(NCCQuestionTopic).all()
+    topic_name_map = {t.code: t.name for t in topics}
+
+    topic_stats_query = (
+        db.query(
+            NCCQuestion.topic_code,
+            func.count(NCCTestAnswer.id).label("attempts"),
+            func.sum(case((NCCTestAnswer.is_correct == True, 1), else_=0)).label("correct"),
+        )
+        .join(NCCTestAnswer, NCCTestAnswer.question_id == NCCQuestion.id)
+        .join(NCCTestSession, NCCTestSession.id == NCCTestAnswer.session_id)
+        .filter(NCCTestSession.status == NCCTestStatusEnum.completed)
+        .group_by(NCCQuestion.topic_code)
+        .all()
+    )
+
+    topic_analytics = []
+    for t_code, attempts, correct in topic_stats_query:
+        corr_val = int(correct or 0)
+        att_val = int(attempts or 0)
+        acc = round(corr_val / att_val * 100.0, 1) if att_val > 0 else 0.0
+        status_val = "strong" if acc >= 75.0 else ("moderate" if acc >= 50.0 else "weak")
+        topic_analytics.append({
+            "topic_code": t_code,
+            "topic_name": topic_name_map.get(t_code, t_code.replace("_", " ").title()),
+            "total_attempts": att_val,
+            "total_correct": corr_val,
+            "accuracy_percentage": acc,
+            "status": status_val,
+        })
+    topic_analytics.sort(key=lambda x: x["accuracy_percentage"], reverse=True)
+
+    # Cadet rankings
+    cadet_rankings_query = (
+        db.query(
+            Cadet.id.label("cadet_id"),
+            Cadet.full_name,
+            Cadet.enrollment_number,
+            Cadet.rank,
+            College.name.label("college_name"),
+            func.count(NCCTestSession.id).label("exams_taken"),
+            func.avg(NCCTestSession.total_score).label("avg_score"),
+            func.avg(NCCTestSession.accuracy_percentage).label("avg_accuracy"),
+            func.max(NCCTestSession.total_score).label("max_score"),
+            func.max(NCCTestSession.created_at).label("last_exam_date"),
+            func.sum(case((NCCTestSession.accuracy_percentage >= 50.0, 1), else_=0)).label("passed_count"),
+        )
+        .join(User, Cadet.user_id == User.id)
+        .join(NCCTestSession, NCCTestSession.user_id == User.id)
+        .outerjoin(College, Cadet.college_id == College.id)
+        .filter(NCCTestSession.status == NCCTestStatusEnum.completed)
+        .group_by(Cadet.id, Cadet.full_name, Cadet.enrollment_number, Cadet.rank, College.name)
+        .order_by(func.avg(NCCTestSession.accuracy_percentage).desc())
+        .all()
+    )
+
+    cadet_rankings = []
+    for c in cadet_rankings_query:
+        exams = int(c.exams_taken or 0)
+        passed = int(c.passed_count or 0)
+        cadet_rankings.append({
+            "cadet_id": c.cadet_id,
+            "full_name": c.full_name,
+            "enrollment_number": c.enrollment_number,
+            "rank": c.rank or "CDT",
+            "college_name": c.college_name or "Battalion Affiliated",
+            "exams_taken": exams,
+            "avg_score": round(float(c.avg_score or 0.0), 1),
+            "avg_accuracy": round(float(c.avg_accuracy or 0.0), 1),
+            "max_score": round(float(c.max_score or 0.0), 1),
+            "pass_rate": round(passed / exams * 100.0, 1) if exams > 0 else 0.0,
+            "last_exam_date": c.last_exam_date.isoformat() if hasattr(c.last_exam_date, "isoformat") else str(c.last_exam_date or ""),
+        })
+
+    recent_sessions, _ = admin_list_sessions(db, limit=50)
+
     return {
         "total_sessions": total_sessions,
         "completed_count": completed_count,
         "average_score": avg_score,
         "average_accuracy": avg_accuracy,
+        "pass_rate_percentage": pass_rate_pct,
+        "distinction_count": distinction_count,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "mode_breakdown": mode_breakdown,
+        "topic_analytics": topic_analytics,
+        "cadet_rankings": cadet_rankings,
         "recent_sessions": recent_sessions,
     }
 

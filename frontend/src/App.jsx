@@ -25,6 +25,7 @@ import NCCMockTestHub from './pages/NCCMockTestHub';
 import NCCMockTestArena from './pages/NCCMockTestArena';
 import NCCMockTestResults from './pages/NCCMockTestResults';
 import NCCQuestionPipeline from './pages/NCCQuestionPipeline';
+import NCCMockTestAnalyticsDashboard from './pages/NCCMockTestAnalyticsDashboard';
 import AdminHome from './pages/AdminHome';
 import MentorHome from './pages/MentorHome';
 import CadetHome from './pages/CadetHome';
@@ -63,9 +64,17 @@ export default function App() {
             <Route path="/ncc-mock-tests/arena" element={<NCCMockTestArena />} />
             <Route path="/ncc-mock-tests/results" element={<NCCMockTestResults />} />
             <Route
+              path="/ncc-mock-tests/analytics"
+              element={
+                <RoleRoute allowedRoles={['admin', 'mentor', 'co', 'co_admin']}>
+                  <NCCMockTestAnalyticsDashboard />
+                </RoleRoute>
+              }
+            />
+            <Route
               path="/ncc-mock-tests/pipeline"
               element={
-                <RoleRoute allowedRoles={['admin', 'mentor']}>
+                <RoleRoute allowedRoles={['admin', 'mentor', 'co', 'co_admin']}>
                   <NCCQuestionPipeline />
                 </RoleRoute>
               }

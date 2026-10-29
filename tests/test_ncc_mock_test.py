@@ -11,6 +11,8 @@ from app.core.dependencies import get_db
 from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models.user import RoleEnum, User
+from app.models.college import Battalion, College
+from app.models.cadet import Cadet, GenderEnum, WingEnum
 from app.models.ncc_mock_test import (
     CertificateLevelEnum,
     NCCQuestion,
@@ -61,6 +63,30 @@ def setup_ncc_test_db():
         is_verified=True,
     )
     db.add_all([cadet, admin])
+    db.commit()
+
+    # Create battalion and college
+    battalion = Battalion(name="1 MP Bn NCC", code="1 MP BN")
+    db.add(battalion)
+    db.commit()
+
+    college = College(name="Govt Science College", battalion_id=battalion.id, academic_year_start=2026)
+    db.add(college)
+    db.commit()
+
+    # Create Cadet profile
+    cadet_profile = Cadet(
+        user_id=cadet.id,
+        college_id=college.id,
+        enrollment_number="MP/26/SD/1001",
+        full_name="Cadet Vikram Sharma",
+        mobile="9876543210",
+        academic_year=2,
+        gender=GenderEnum.male,
+        wing=WingEnum.SD,
+        rank="CDT",
+    )
+    db.add(cadet_profile)
     db.commit()
 
     # Seed syllabus topics and questions
@@ -408,3 +434,35 @@ def test_admin_sessions_audit_and_reset(admin_auth_headers):
     data = res.json()
     assert "items" in data
     assert "total" in data
+
+
+def test_officer_analytics_and_cadet_deep_dive(admin_auth_headers, cadet_auth_headers):
+    client = TestClient(app)
+    db = TestingSessionLocal()
+    cadet_user = db.query(User).filter(User.email == "cadet_ncc@test.local").first()
+    assert cadet_user is not None
+    cadet_record = db.query(Cadet).filter(Cadet.user_id == cadet_user.id).first()
+    assert cadet_record is not None
+
+    # 1. Officer overview endpoint (Admin/ANO role)
+    res = client.get("/api/v1/ncc-mock-tests/analytics/officer-overview", headers=admin_auth_headers)
+    assert res.status_code == 200
+    overview = res.json()
+    assert "total_sessions" in overview
+    assert "completed_count" in overview
+    assert "pass_rate_percentage" in overview
+    assert "cadet_rankings" in overview
+    assert "topic_analytics" in overview
+    assert "mode_breakdown" in overview
+    assert "recent_sessions" in overview
+
+    # 2. Officer cadet-specific diagnostic
+    res_cadet = client.get(f"/api/v1/ncc-mock-tests/analytics/cadet/{cadet_record.id}", headers=admin_auth_headers)
+    assert res_cadet.status_code == 200
+    cadet_data = res_cadet.json()
+    assert "tests_completed" in cadet_data
+    assert "overall_accuracy" in cadet_data
+    assert "radar_data" in cadet_data
+    assert "cadet" in cadet_data
+    assert cadet_data["cadet"]["id"] == cadet_record.id
+

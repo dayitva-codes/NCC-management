@@ -149,23 +149,42 @@ export default function NCCMockTestHub() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/ncc-mock-tests/pipeline')}
-            style={{
-              padding: '8px 18px',
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              fontWeight: 800,
-              fontSize: 12,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
-            }}
-          >
-            Open Admin Customization HQ ➔
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate('/ncc-mock-tests/analytics')}
+              style={{
+                padding: '8px 18px',
+                background: '#166534',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(22,101,52,0.3)',
+              }}
+            >
+              📈 Student Results & Analytics →
+            </button>
+            <button
+              onClick={() => navigate('/ncc-mock-tests/pipeline')}
+              style={{
+                padding: '8px 18px',
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
+              }}
+            >
+              ⚙️ Question Pipeline HQ →
+            </button>
+          </div>
         </div>
       )}
 

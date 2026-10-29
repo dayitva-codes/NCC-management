@@ -242,6 +242,7 @@ export const api = {
   getNCCItemAnalysis: () => apiRequest('/ncc-mock-tests/analytics/item-analysis'),
   getCadetSessions: (cadetId) => apiRequest(`/ncc-mock-tests/cadets/${cadetId}/sessions`),
   getOfficerExamOverview: () => apiRequest('/ncc-mock-tests/analytics/officer-overview'),
+  getCadetAnalyticsById: (cadetId) => apiRequest(`/ncc-mock-tests/analytics/cadet/${cadetId}`),
 
   // NCC MCQ Admin Customization & Operations
   getNCCTestConfig: () => apiRequest('/ncc-mock-tests/config'),
