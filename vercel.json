@@ -35,8 +35,12 @@
       "dest": "/frontend/dist/assets/$1"
     },
     {
-      "src": "/(.*)",
+      "src": "/((?!api/|docs|openapi.json|health).*\\.[^/]+)",
       "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
     }
   ]
 }

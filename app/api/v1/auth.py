@@ -1,15 +1,61 @@
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from jose import JWTError, jwt
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import SupabaseToken, Token, UserOut
 from app.services import auth_service
-from jose import JWTError, jwt
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def verify_supabase_token(access_token: str) -> dict:
+    """
+    Verifies a Supabase access token via two complementary methods:
+    1. Local JWT decode using SUPABASE_JWT_SECRET (fast, zero latency)
+    2. Supabase Auth API verification via GET {SUPABASE_URL}/auth/v1/user (resilient fallback)
+    """
+    # Method 1: Local JWT secret decode
+    if settings.supabase_jwt_secret:
+        try:
+            claims = jwt.decode(
+                access_token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+            return claims
+        except Exception as exc:
+            print(f"[Supabase Auth] Local JWT secret decode note: {exc}. Trying Supabase Auth API...")
+
+    # Method 2: Supabase Auth REST verification
+    if settings.supabase_url:
+        try:
+            url = f"{settings.supabase_url.rstrip('/')}/auth/v1/user"
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "apikey": settings.supabase_anon_key or settings.supabase_service_role_key or "",
+            }
+            with httpx.Client(timeout=8.0) as client:
+                res = client.get(url, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    return {
+                        "role": "authenticated",
+                        "email": data.get("email"),
+                        "sub": data.get("id"),
+                        "user_metadata": data.get("user_metadata", {}),
+                    }
+                else:
+                    print(f"[Supabase Auth] Auth endpoint returned {res.status_code}: {res.text[:120]}")
+        except Exception as exc:
+            print(f"[Supabase Auth] Auth API request error: {exc}")
+
+    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or unverified Supabase authentication session")
 
 
 @router.post("/login", response_model=Token)
@@ -29,18 +75,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.post("/supabase", response_model=Token)
 def login_with_supabase(payload: SupabaseToken, db: Session = Depends(get_db)):
-    if not settings.supabase_jwt_secret:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Supabase login is not configured")
-    try:
-        claims = jwt.decode(
-            payload.access_token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-    except JWTError as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Supabase session") from exc
-    token = auth_service.login_with_supabase(db, claims, settings.supabase_jwt_secret)
+    claims = verify_supabase_token(payload.access_token)
+    token = auth_service.login_with_supabase(db, claims)
     return Token(access_token=token)
 
 
@@ -87,4 +123,3 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         college_name=college_name,
         battalion_name=battalion_name,
     )
-

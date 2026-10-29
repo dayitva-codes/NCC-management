@@ -5,17 +5,21 @@ export function getApiBase() {
   if (!isBrowser) return '/api/v1';
   const isHttps = window.location.protocol === 'https:';
   const stored = localStorage.getItem('ncc_api_base');
-  
+  const envApiBase = import.meta.env.VITE_API_BASE_URL;
+
   // If running on HTTPS or live domain, NEVER allow http:// localhost
   if (isHttps || !isLocalhost) {
-    if (!stored || stored.includes('127.0.0.1') || stored.includes('localhost') || stored.startsWith('http://')) {
-      localStorage.removeItem('ncc_api_base');
-      return '/api/v1';
+    if (stored && !stored.includes('127.0.0.1') && !stored.includes('localhost') && !stored.startsWith('http://')) {
+      return stored;
     }
-    return stored;
+    if (envApiBase && !envApiBase.includes('127.0.0.1') && !envApiBase.includes('localhost') && !envApiBase.startsWith('http://')) {
+      return envApiBase;
+    }
+    localStorage.removeItem('ncc_api_base');
+    return '/api/v1';
   }
-  
-  return stored || 'http://127.0.0.1:8000/api/v1';
+
+  return stored || envApiBase || 'http://127.0.0.1:8000/api/v1';
 }
 
 export function setApiBase(url) {

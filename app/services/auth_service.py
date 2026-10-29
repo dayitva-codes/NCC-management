@@ -1,5 +1,5 @@
 import secrets
-
+from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -38,15 +38,22 @@ def login(db: Session, email: str, password: str) -> str:
     return create_access_token({"sub": str(user.id), "role": user.role.value})
 
 
-def login_with_supabase(db: Session, claims: dict, jwt_secret: str) -> str:
-    if not jwt_secret or claims.get("role") != "authenticated":
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Supabase authentication is not configured")
+def login_with_supabase(db: Session, claims: dict) -> str:
+    if claims.get("role") != "authenticated":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Supabase authentication is not authenticated")
 
     email = claims.get("email")
     if not email:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Google account did not provide an email")
 
     user = db.query(User).filter(User.email == email).first()
+    user_metadata = claims.get("user_metadata") or {}
+    full_name = (
+        user_metadata.get("full_name")
+        or user_metadata.get("name")
+        or email.split("@")[0].replace(".", " ").title()
+    )
+
     if not user:
         user = User(
             email=email,
@@ -58,6 +65,31 @@ def login_with_supabase(db: Session, claims: dict, jwt_secret: str) -> str:
         db.commit()
         db.refresh(user)
 
+    # Ensure Cadet service profile exists for seamless station access
+    if user.role == RoleEnum.cadet and not user.cadet_profile:
+        from app.models.cadet import Cadet, GenderEnum, WingEnum
+        from app.models.college import College
+
+        default_college = db.query(College).first()
+        college_id = default_college.id if default_college else 1
+
+        cadet_profile = Cadet(
+            user_id=user.id,
+            college_id=college_id,
+            enrollment_number=f"DL{datetime.utcnow().year % 100}SDA{user.id:04d}",
+            full_name=full_name,
+            mobile="9999999999",
+            academic_year=2026,
+            gender=GenderEnum.male,
+            wing=WingEnum.SD,
+            rank="CDT",
+            ncc_goal="Republic Day Camp (RDC) & Military Leadership",
+        )
+        db.add(cadet_profile)
+        db.commit()
+        db.refresh(user)
+
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is inactive")
+
     return create_access_token({"sub": str(user.id), "role": user.role.value})

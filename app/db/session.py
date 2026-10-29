@@ -79,7 +79,7 @@ def init_engine(url: str):
     """
     if "postgresql" in url:
         try:
-            connect_args = {"connect_timeout": 3}
+            connect_args = {"connect_timeout": 10}
             pool_kwargs = {}
             if is_serverless_env():
                 from sqlalchemy.pool import NullPool

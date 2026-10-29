@@ -11,64 +11,68 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    async function exchangeSupabaseSession(session) {
+      if (!session?.access_token) return;
+      try {
+        const { access_token } = await api.loginWithSupabase(session.access_token);
+        setToken(access_token);
+        const me = await api.me();
+        if (mounted) {
+          setUser(me);
+        }
+      } catch (err) {
+        console.error('Supabase session exchange note:', err);
+        setToken(null);
+        if (mounted) setUser(null);
+      }
+    }
+
     async function restoreSession() {
+      // 1. Try restoring existing CADET-360 JWT token
       if (getToken()) {
         try {
           const me = await api.me();
-          if (mounted) setUser(me);
+          if (mounted) {
+            setUser(me);
+            setLoading(false);
+          }
+          return;
         } catch {
           setToken(null);
         }
-        if (mounted) setLoading(false);
-        return;
       }
 
-      if (!isSupabaseConfigured || !supabase) {
-        if (mounted) setLoading(false);
-        return;
-      }
-
-      try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Supabase session timeout')), 1500)
-        );
-        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
-        if (!error && data?.session) {
-          await exchangeSupabaseSession(data.session);
+      // 2. Check for active Supabase OAuth session (Google login redirect)
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (!error && data?.session) {
+            await exchangeSupabaseSession(data.session);
+          }
+        } catch (err) {
+          console.warn('Supabase session restore note:', err);
         }
-      } catch {
-        // Fall back gracefully to avoid blocking page interactive load
       }
+
       if (mounted) setLoading(false);
     }
 
-    function handleAuthChange(_event, session) {
-      if (session && !getToken()) {
-        exchangeSupabaseSession(session).catch(() => {
-          if (mounted) setLoading(false);
-        });
-      }
-    }
+    restoreSession();
 
-    function exchangeSupabaseSession(session) {
-      return api.loginWithSupabase(session.access_token)
-        .then(({ access_token }) => {
-          setToken(access_token);
-          return api.me();
-        })
-        .then(me => {
-          if (mounted) setUser(me);
-        });
-    }
-
-    restoreSession().catch(() => {
-      setToken(null);
-      if (mounted) setLoading(false);
-    });
-
-    const subscription = isSupabaseConfigured
-      ? supabase.auth.onAuthStateChange(handleAuthChange).data.subscription
+    // 3. Listen to Supabase Auth State changes (OAuth redirects & sign-in triggers)
+    const subscription = isSupabaseConfigured && supabase
+      ? supabase.auth.onAuthStateChange(async (event, session) => {
+          if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
+            await exchangeSupabaseSession(session);
+            if (mounted) setLoading(false);
+          } else if (event === 'SIGNED_OUT') {
+            setToken(null);
+            if (mounted) {
+              setUser(null);
+              setLoading(false);
+            }
+          }
+        }).data?.subscription
       : null;
 
     return () => {
@@ -88,7 +92,9 @@ export function AuthProvider({ children }) {
   function logout() {
     setToken(null);
     setUser(null);
-    if (isSupabaseConfigured) supabase.auth.signOut();
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
   }
 
   return (
@@ -98,10 +104,14 @@ export function AuthProvider({ children }) {
       login,
       logout,
       googleLogin: () => {
-        if (!supabase) throw new Error('Google sign-in is not configured yet.');
+        if (!isSupabaseConfigured || !supabase) {
+          throw new Error('Google sign-in is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment settings.');
+        }
         return supabase.auth.signInWithOAuth({
           provider: 'google',
-          options: { redirectTo: window.location.origin },
+          options: {
+            redirectTo: window.location.origin + '/login',
+          },
         });
       },
       googleEnabled: isSupabaseConfigured,
