@@ -174,7 +174,19 @@ def import_questions_csv(
     if current_user.role not in [RoleEnum.admin, RoleEnum.mentor, RoleEnum.co, RoleEnum.co_admin]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only Mentors and Admins can import questions")
 
-    content = file.file.read().decode("utf-8-sig")
+    # Read up to 5 MB maximum to prevent memory exhaustion DoS
+    raw_bytes = file.file.read(5 * 1024 * 1024 + 1)
+    if len(raw_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File exceeds maximum upload size (5 MB)")
+
+    try:
+        content = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            content = raw_bytes.decode("latin-1")
+        except Exception:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "File is not a valid UTF-8 text file")
+
     reader = csv.DictReader(io.StringIO(content))
 
     valid_topics = {t.code for t in db.query(NCCQuestionTopic).all()}

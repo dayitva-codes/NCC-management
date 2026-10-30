@@ -73,7 +73,7 @@ def create_study_material(
     admin_user: User = Depends(require_role("admin", "co", "co_admin")),
 ):
     """(Admin) Add a new handbook, syllabus guide, or online training module."""
-    data = payload.dict()
+    data = payload.model_dump()
     item = StudyMaterial(**data)
     db.add(item)
     db.commit()
@@ -93,7 +93,7 @@ def update_study_material(
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Study material not found")
 
-    update_data = payload.dict(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(item, key, value)
 

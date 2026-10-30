@@ -1,8 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import logging
 import bcrypt
 from jose import JWTError, jwt
 
 from app.core.config import settings
+
+logger = logging.getLogger("ncc.security")
 
 
 def hash_password(password: str) -> str:
@@ -20,13 +23,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
             hashed_password.encode("utf-8")
         )
     except Exception as e:
-        print(f"Password verification warning: {e}")
+        logger.warning(f"Password verification warning: {e}")
         return False
 
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 

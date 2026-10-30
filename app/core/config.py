@@ -1,8 +1,15 @@
+import logging
+import os
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger("ncc.config")
 
 
 class Settings(BaseSettings):
-    # Active database connection: PostgreSQL (Supabase / Render) or fallback SQLite
+    # Deployment environment: 'development', 'staging', 'production'
+    environment: str = "development"
+
+    # Active database connection: PostgreSQL (Supabase / Render / Docker) or fallback SQLite
     database_url: str = "sqlite:///./ncc.db"
 
     # Core API Security & JWT
@@ -10,14 +17,17 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 1 day
 
-    # Supabase Cloud Project Configuration
+    # Supabase Cloud Project Configuration (Google OAuth & PostgreSQL hosting)
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
     supabase_jwt_secret: str = ""
 
-    # Cross-Origin Resource Sharing (CORS)
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,*"
+    # Optional AI Insight Provider Key (Anthropic Claude)
+    anthropic_api_key: str = ""
+
+    # Cross-Origin Resource Sharing (CORS) - comma-delimited list of allowed domains
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
 
     class Config:
         env_file = ".env"
@@ -25,3 +35,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Enforce secure configuration in production
+if settings.environment.lower() == "production":
+    if settings.secret_key == "change-this-secret-key-before-any-real-deployment":
+        raise ValueError(
+            "FATAL SECURITY CONFIGURATION: In production mode, SECRET_KEY must be set "
+            "to a unique, cryptographically strong random string via environment variables."
+        )

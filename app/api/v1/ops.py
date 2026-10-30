@@ -40,10 +40,13 @@ def list_attendance(
 
     records = q.order_by(AttendanceRecord.date.desc(), AttendanceRecord.id.desc()).all()
 
-    # Pre-populate cadet name and enrollment number
+    # Pre-populate cadet metadata in single batched query (eliminates N+1 query loop)
+    cadet_ids = {r.cadet_id for r in records}
+    cadets_map = {c.id: c for c in db.query(Cadet).filter(Cadet.id.in_(cadet_ids)).all()} if cadet_ids else {}
+
     results = []
     for r in records:
-        c = db.query(Cadet).filter(Cadet.id == r.cadet_id).first()
+        c = cadets_map.get(r.cadet_id)
         results.append(
             AttendanceRecordOut(
                 id=r.id,

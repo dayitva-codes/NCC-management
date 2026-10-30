@@ -1,14 +1,17 @@
+import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from jose import JWTError, jwt
+from jose import jwt
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import SupabaseToken, Token, UserOut
 from app.services import auth_service
+
+logger = logging.getLogger("ncc.auth")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,7 +33,7 @@ def verify_supabase_token(access_token: str) -> dict:
             )
             return claims
         except Exception as exc:
-            print(f"[Supabase Auth] Local JWT secret decode note: {exc}. Trying Supabase Auth API...")
+            logger.info(f"Local Supabase JWT decode fallback: {exc}")
 
     # Method 2: Supabase Auth REST verification
     if settings.supabase_url:
@@ -51,9 +54,9 @@ def verify_supabase_token(access_token: str) -> dict:
                         "user_metadata": data.get("user_metadata", {}),
                     }
                 else:
-                    print(f"[Supabase Auth] Auth endpoint returned {res.status_code}: {res.text[:120]}")
+                    logger.warning(f"Supabase auth endpoint returned {res.status_code}")
         except Exception as exc:
-            print(f"[Supabase Auth] Auth API request error: {exc}")
+            logger.warning(f"Supabase auth API request warning: {exc}")
 
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or unverified Supabase authentication session")
 
@@ -66,10 +69,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Login error: {e}")
+        logger.error(f"Login error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Authentication server error: {str(e)}"
+            detail="Authentication server error. Please verify credentials."
         )
 
 

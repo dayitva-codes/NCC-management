@@ -23,7 +23,7 @@ def test_full_system_flow():
     print("2. Testing /health...")
     res = client.get("/health")
     assert res.status_code == 200, f"Health check failed: {res.text}"
-    assert res.json() == {"status": "ok"}
+    assert res.json()["status"] == "ok"
     print("   [OK] Health check passed")
 
     print("3. Testing Admin Login...")
@@ -34,7 +34,7 @@ def test_full_system_flow():
     print("   [OK] Admin login passed")
 
     print("4. Testing Battalion creation and listing...")
-    res = client.post("/api/v1/battalions", json={"name": "3 MP Girls Battalion", "code": "3MPGBN"})
+    res = client.post("/api/v1/battalions", json={"name": "3 MP Girls Battalion", "code": "3MPGBN"}, headers=admin_headers)
     assert res.status_code == 200 or res.status_code == 201, f"Battalion creation failed: {res.text}"
     battalion_id = res.json()["id"]
 
@@ -44,7 +44,7 @@ def test_full_system_flow():
     print(f"   [OK] Battalion created with id={battalion_id}")
 
     print("5. Testing College creation...")
-    res = client.post("/api/v1/colleges", json={"battalion_id": battalion_id, "name": "Govt Girls College", "academic_year_start": 2026})
+    res = client.post("/api/v1/colleges", json={"battalion_id": battalion_id, "name": "Govt Girls College", "academic_year_start": 2026}, headers=admin_headers)
     assert res.status_code in [200, 201], f"College creation failed: {res.text}"
     college_id = res.json()["id"]
     print(f"   [OK] College created with id={college_id}")

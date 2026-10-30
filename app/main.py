@@ -1,48 +1,73 @@
+from contextlib import asynccontextmanager
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.db.base import Base
-from app.db.seed import seed
-from app.db.session import SessionLocal, engine
+from app.db.session import engine, ensure_db_ready
 
-import app.models
-
-app = FastAPI(title="CADET-360: National Cadet Corps Command Platform", version="1.0.0")
-
-# Setup CORS origins
-raw_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
-if "*" in raw_origins or not raw_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex=".*",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=raw_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+logger = logging.getLogger("ncc.main")
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI Lifespan Context Manager:
+    Initializes database schema, auto-migrations, and baseline seeds on application startup.
+    """
     try:
-        from app.db.session import ensure_db_ready
         ensure_db_ready()
     except Exception as e:
-        print(f"Startup DB init warning: {e}")
+        logger.warning(f"Startup DB readiness note: {e}")
+    yield
+
+
+app = FastAPI(
+    title="CADET-360: National Cadet Corps Command Platform",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Robust, Standards-Compliant CORS Configuration
+raw_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+allowed_origins = [o for o in raw_origins if o != "*"]
+if not allowed_origins:
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$|^https://.*\.vercel\.app$|^https://.*\.onrender\.com$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """
+    Active health check probe: verifies API liveness and database connectivity.
+    """
+    db_status = "connected"
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"degraded: {str(e)[:60]}"
+
+    return {
+        "status": "ok" if "degraded" not in db_status else "degraded",
+        "database": db_status,
+        "engine": "postgresql" if "postgresql" in str(engine.url) else "sqlite",
+    }
 
 
 # Mount routers for both /api/v1 and /v1 paths for flexible serverless rewrites

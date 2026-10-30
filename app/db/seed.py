@@ -144,9 +144,6 @@ def seed(db: Session) -> None:
         db.add(admin)
         db.commit()
         db.refresh(admin)
-    else:
-        admin.hashed_password = hash_password("admin123")
-        db.commit()
 
     # Allow automated unit tests to execute registration from scratch
     import os
