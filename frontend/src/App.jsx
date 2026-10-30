@@ -26,9 +26,6 @@ import NCCMockTestArena from './pages/NCCMockTestArena';
 import NCCMockTestResults from './pages/NCCMockTestResults';
 import NCCQuestionPipeline from './pages/NCCQuestionPipeline';
 import NCCMockTestAnalyticsDashboard from './pages/NCCMockTestAnalyticsDashboard';
-import AdminHome from './pages/AdminHome';
-import MentorHome from './pages/MentorHome';
-import CadetHome from './pages/CadetHome';
 
 function RoleRedirect() {
   const { user, loading } = useAuth();
@@ -133,10 +130,10 @@ export default function App() {
               }
             />
 
-            {/* Backwards-compatible Role Routes */}
-            <Route path="/admin" element={<RoleRoute allowedRoles={['admin']}><AdminHome /></RoleRoute>} />
-            <Route path="/mentor" element={<RoleRoute allowedRoles={['mentor']}><MentorHome /></RoleRoute>} />
-            <Route path="/cadet" element={<RoleRoute allowedRoles={['cadet']}><CadetHome /></RoleRoute>} />
+            {/* Role-based Direct Routes */}
+            <Route path="/admin" element={<RoleRoute allowedRoles={['admin']}><DashboardView /></RoleRoute>} />
+            <Route path="/mentor" element={<RoleRoute allowedRoles={['mentor']}><PerformanceView /></RoleRoute>} />
+            <Route path="/cadet" element={<RoleRoute allowedRoles={['cadet']}><DashboardView /></RoleRoute>} />
           </Route>
 
           <Route path="/" element={<RoleRedirect />} />
