@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "node dev.js",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
-    "test": "python test_app.py"
+    "test": "pytest tests/ test_app.py"
   }
 }
