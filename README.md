@@ -1,25 +1,76 @@
-# 🇮🇳 CADET-360: National Cadet Corps Command & Evaluation Platform
+# 🇮🇳 CADET-360: National Cadet Corps Command Platform
 
-> **CADET-360** is an enterprise-grade Cadet & Battalion Operations OS built with **FastAPI**, **SQLAlchemy**, **Supabase PostgreSQL / SQLite**, and **React + Vite**. Features official NCC branding, 9-dimensional military evaluations with customizable focus priorities, psychometric mock test examinations, Raipur Group battalion-college pairings, and real-time leaderboards.
+> **CADET-360** is an enterprise-grade digital operating system designed for the **National Cadet Corps (NCC)**. Engineered with **FastAPI**, **SQLAlchemy 2.0**, **PostgreSQL / SQLite**, and **React 18 + Vite**, it replaces paper-bound administrative workflows with 9-dimensional military evaluations, customizable training focus parameters, an official Certificate A/B/C mock examination engine with psychometric item analysis, parade attendance muster rolls, and real-time battalion leaderboards.
 
 ---
 
-## 💻 How to Run on a Different PC (Step-by-Step Setup)
+## 📑 Table of Contents
+1. [What CADET-360 Is & Core Capabilities](#-what-cadet-360-is--core-capabilities)
+2. [Prerequisites](#-prerequisites)
+3. [Quick Start](#-quick-start)
+   - [Option A: Local Development (Fastest)](#option-a-local-development-fastest)
+   - [Option B: Single-Command Docker Deployment](#option-b-single-command-docker-deployment)
+4. [Environment Variables Table](#-environment-variables-table)
+5. [Database Seeding & Starter Data](#-database-seeding--starter-data)
+6. [Project Structure](#-project-structure)
+7. [Role-Based Access Control (RBAC) Matrix](#-role-based-access-control-rbac-matrix)
+8. [Common Errors & Troubleshooting](#-common-errors--troubleshooting)
+9. [Running Automated Tests](#-running-automated-tests)
 
-Follow these steps to get CADET-360 running on any new Windows, Mac, or Linux computer:
+---
 
-### 1. Prerequisites
-- **Git**: [git-scm.com](https://git-scm.com/)
-- **Python 3.10+**: [python.org](https://www.python.org/)
-- **Node.js 18+ & npm**: [nodejs.org](https://nodejs.org/)
+## 🎖️ What CADET-360 Is & Core Capabilities
 
-### 2. Clone the Repository
+- **Digital Battalion & Roster Hierarchy**: Structured management of Directorates, Battalions, Affiliated Colleges, Associate NCC Officers (ANOs / Mentors), and Cadets (SD / SW).
+- **9-Pillars Military Evaluation Framework**: Objective assessment rubric covering:
+  1. *Drill & Parade Precision*
+  2. *Physical Fitness & Endurance*
+  3. *Discipline & Military Bearing*
+  4. *Leadership & Squad Command*
+  5. *NCC Knowledge & Service SOPs*
+  6. *Communication & Briefing Skills*
+  7. *Teamwork & Esprit de Corps*
+  8. *Time Punctuality & Turnout*
+  9. *Parade Attendance Compliance (75% statutory requirement)*
+- **Custom Assessment Focus Priorities**: Officers can designate any assessment pillar as *More to Focus (High)*, *Standard*, or *Less to Focus (Low)*, and create custom training parameters with real-time reactive sync.
+- **Official NCC Certificate Mock Exam Engine**:
+  - 19 official NCC syllabus topics (Drill, Weapon Training, Map Reading, Field Craft, Military History, etc.).
+  - 5 exam modes: Full Mock (100 Qs), Certificate-wise (A, B, C), Topic Drill, Quick Sprint, and Weak Area spaced-repetition.
+  - Server-authoritative countdown timers and zero-leakage randomized option permutations.
+- **Officer Analytics & Psychometric Item Analysis**:
+  - Real-time Difficulty Index ($P$) and Discrimination Index ($D$) computation.
+  - Distractor frequency tracking and psychometric diagnostic alerts.
+  - Battalion pass-rate KPIs, student rankings, and CSV scorecard export.
+- **Resilient Dual-Engine Database Architecture**:
+  - Automatically connects to remote **PostgreSQL** (Supabase, Render, or Docker).
+  - Seamlessly falls back to local **SQLite (`ncc.db`)** if remote connectivity is offline, ensuring zero downtime or startup failures.
+
+---
+
+## 📋 Prerequisites
+
+Ensure the following tools are installed on your machine:
+
+| Tool | Minimum Version | Installation Link |
+| :--- | :--- | :--- |
+| **Python** | `3.10+` (3.10, 3.11, or 3.12) | [python.org](https://www.python.org/downloads/) |
+| **Node.js & npm** | `Node 18+` and `npm 9+` | [nodejs.org](https://nodejs.org/) |
+| **Git** | Any recent version | [git-scm.com](https://git-scm.com/) |
+| **Docker & Compose** *(Optional)* | Docker Desktop or Engine `20.10+` | [docker.com](https://www.docker.com/) |
+
+---
+
+## 🚀 Quick Start
+
+### Option A: Local Development (Fastest)
+
+#### 1. Clone Repository & Enter Directory
 ```bash
 git clone https://github.com/dayitva-codes/NCC-management.git
 cd NCC-management
 ```
 
-### 3. Setup Python Virtual Environment & Backend
+#### 2. Setup Python Virtual Environment
 ```bash
 # Create virtual environment
 python -m venv venv
@@ -28,244 +79,253 @@ python -m venv venv
 # Windows (PowerShell):
 .\venv\Scripts\Activate.ps1
 # Windows (CMD):
-venv\Scripts\activate.bat
-# macOS / Linux:
+.\venv\Scripts\activate.bat
+# Linux / macOS:
 source venv/bin/activate
 
 # Install Python backend dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Setup Frontend Dependencies
+#### 3. Install Frontend Dependencies
 ```bash
-# Install root orchestration dependencies
-npm install
-
-# Install React frontend dependencies
-cd frontend
-npm install
-cd ..
+npm --prefix frontend install
 ```
 
-### 5. Configure Environment Variables (`.env`)
-Copy the provided `.env.example` to `.env`:
+#### 4. Configure Environment Variables
+Copy the `.env.example` templates:
 ```bash
 # Windows:
 copy .env.example .env
-# macOS / Linux:
-cp .env.example .env
-```
-> **Note**: If `DATABASE_URL` is left commented out or points to an offline database, the system **automatically and safely falls back to local SQLite (`ncc.db`)** and seeds all 16 Battalions and 32 Colleges instantly!
+copy frontend\.env.example frontend\.env
 
-### 6. Launch the Application (One Command)
-From the project root:
+# Linux / macOS:
+cp .env.example .env
+cp frontend/.env.example frontend/.env
+```
+*(By default, `DATABASE_URL` is configured to use local SQLite `ncc.db`, allowing instant zero-config startup without setting up a remote database).*
+
+#### 5. Seed Starter Database
+```bash
+python -m app.db.seed
+```
+
+#### 6. Start the Application
 ```bash
 npm run dev
 ```
-This concurrently starts:
-- **Backend API Gateway**: `http://127.0.0.1:8000` (FastAPI + Swagger Docs at `/docs`)
-- **Frontend Web UI**: `http://127.0.0.1:5173` (CADET-360 Terminal)
+This single command concurrently boots:
+- **Backend API Gateway**: [`http://127.0.0.1:8000`](http://127.0.0.1:8000) (Interactive Swagger Docs at `/docs`)
+- **Frontend Command Station**: [`http://127.0.0.1:5173`](http://127.0.0.1:5173)
 
 ---
 
-## ⚡ Access URLs
-| Service | URL | Description |
-| :--- | :--- | :--- |
-| **CADET-360 Web Terminal** | [http://127.0.0.1:5173](http://127.0.0.1:5173) | Authentic cadet & officer dashboard |
-| **NCC Mock Test Arena** | [http://127.0.0.1:5173/ncc-mock-tests](http://127.0.0.1:5173/ncc-mock-tests) | Certificate A/B/C exam practice & dossier |
-| **Question Bank Pipeline** | [http://127.0.0.1:5173/ncc-mock-tests/pipeline](http://127.0.0.1:5173/ncc-mock-tests/pipeline) | Psychometric item analysis & CSV pipeline |
-| **Backend API Gateway** | [http://127.0.0.1:8000/api/v1](http://127.0.0.1:8000/api/v1) | FastAPI endpoints & health check |
-| **Interactive Swagger Docs** | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Live API testing & schema docs |
+### Option B: Single-Command Docker Deployment
 
+Launch the complete application along with an isolated PostgreSQL 16 database with one command:
 
----
-
-## 🎖️ NCC Mock Test & Certificate Exam Practice (New)
-
-The system includes a full-featured MCQ-based mock examination engine modeled after official **NCC Certificate A, B, and C** examinations:
-
-### ✨ Core Capabilities
-- **19 Official Configurable Syllabus Topics**:
-  - NCC Organisation & History, Aim/Motto/Pledge/Song, Ranks & Insignia, Wings (Army/Navy/Air), Certificates (A/B/C), Camps & Events, Drill & Drill Commands, Weapon Training (.22 Rifle, 7.62mm SLR, 5.56mm INSAS), Map Reading & Compass, Field Craft & Battle Craft, Leadership & Personality Development, National Integration & Culture, Disaster Management, Social Service & Community Development, Health & Hygiene, First Aid, Adventure Activities, Self-Defence, Environment & Ecology, Military History.
-- **5 Examination & Practice Modes**:
-  - **Full Mock Exam**: Blueprint-balanced distribution mirroring actual Directorate certification exams.
-  - **Certificate-wise Practice**: Filtered by standard for Certificate A (JD/JW), Certificate B (SD/SW 2nd year), or Certificate C (SD/SW 3rd year).
-  - **Topic-wise Technical Drill**: Deep dive into specific topics with custom question counts.
-  - **Quick 20-Q Sprint**: Fast 20-minute daily review.
-  - **Targeted Weak Area Practice**: Spaced-repetition mode prioritizing syllabus topics with accuracy $< 50\%$.
-- **Security & Integrity Safeguards**:
-  - **Zero Answer Key Leakage**: Option correct keys and handbook explanations are withheld from the client until after submission.
-  - **Server-Authoritative Timer**: Countdown survives page refreshes and browser restarts; answers submitted after expiration are rejected with HTTP 400.
-  - **Shuffled Options**: Every session randomizes option permutations (`A/B/C/D`) to prevent visual pattern cheating.
-  - **Progressive Auto-Save**: Real-time background sync on every selection with live status indicators.
-- **Scoring & Review Dossier**:
-  - Standard marking scheme: **+1.0** for correct, **-0.25** negative marking for incorrect, **0.0** for unattempted.
-  - Comprehensive review with question-by-question breakdown, explanations, and official NCC handbook source citations.
-- **Psychometrics & Question Quality Pipeline**:
-  - **Difficulty Index ($P$)**: Proportion of cadets answering correctly ($0.0 \dots 1.0$).
-  - **Discrimination Index ($D$)**: Evaluates question discernment between top 27% and bottom 27% cohorts ($D = P_{\text{top}} - P_{\text{bottom}}$).
-  - **Distractor Analysis**: Tracks frequency of selection across all 4 options ($A, B, C, D$).
-  - **Automated Quality Flags**: `too_hard`, `too_easy`, `negative_discrimination`, and `ambiguous_key`.
-  - **Bulk CSV Importer**: Row-level validation verifying valid topics, difficulty, certificate levels, wings, exactly 4 distinct options, and 0-3 answer indices.
-
-### 🧪 Running NCC Mock Test & API Tests
 ```bash
-# Run all 28 test suites (NCC mock test + coding test platform)
-pytest tests/ -v
+# 1. Copy environment template
+cp .env.example .env
 
-# Run dedicated NCC Mock Test suite
-pytest tests/test_ncc_mock_test.py -v
+# 2. Build and start containers in background
+docker compose up -d --build
+```
 
-# Run core battalion regression suite
-python test_app.py
+Access the application:
+- **Web App & API**: [`http://localhost:8000`](http://localhost:8000)
+- **API Documentation**: [`http://localhost:8000/docs`](http://localhost:8000/docs)
+- **Health Check**: [`http://localhost:8000/health`](http://localhost:8000/health)
+
+To view logs:
+```bash
+docker compose logs -f
+```
+
+To stop containers:
+```bash
+docker compose down
 ```
 
 ---
 
-## 🔑 System Roles & Default Credentials
+## ⚙️ Environment Variables Table
 
-| Role | Email | Password | Access & Responsibilities |
+### Backend Variables (`.env`)
+
+| Variable | Required in Prod? | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **HQ Commander (Admin)** | `admin@ncc.local` | `admin123` | Setup Battalions, Affiliated Colleges, Verify Mentors |
-| **Battalion Mentor (ANO)** | `mentor@ncc.local` | `mentor123` | Score Cadets across 9 evaluation pillars |
-| **Active Cadet** | *Self-registered* | *User defined* | View Performance Dossier, Radar Metrics, AI Action Regimens |
+| `ENVIRONMENT` | Yes | `development` | Deployment environment (`development`, `staging`, `production`). In production, insecure default keys are blocked. |
+| `DATABASE_URL` | Yes | `sqlite:///./ncc.db` | PostgreSQL connection pooler URI (`postgresql://...`) or SQLite path (`sqlite:///...`). |
+| `SECRET_KEY` | **Yes (in prod)** | *Default dev key* | Cryptographically strong random key for signing JWT tokens. |
+| `ALGORITHM` | No | `HS256` | JWT signing algorithm. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `1440` | JWT token lifetime in minutes (1440 = 24 hours). |
+| `CORS_ORIGINS` | Yes | `localhost:5173,...` | Comma-delimited list of allowed origin URLs (e.g. `https://your-domain.com`). |
+| `SUPABASE_URL` | Optional | `""` | Supabase project URL for Google OAuth verification. |
+| `SUPABASE_ANON_KEY` | Optional | `""` | Supabase public anonymous API key. |
+| `SUPABASE_SERVICE_ROLE_KEY`| Optional | `""` | Supabase service role key (backend only). |
+| `SUPABASE_JWT_SECRET` | Optional | `""` | Supabase JWT signing secret for fast local token verification. |
+| `ANTHROPIC_API_KEY` | Optional | `""` | Optional Anthropic API key for AI drill & training regimens. |
 
-*Tip: Use the **`[HQ ADMIN]`**, **`[OFFICER MENTOR]`**, or **`[ACTIVE CADET]`** quick-fill preset buttons on the Login screen for instant authentication.*
+### Frontend Variables (`frontend/.env`)
 
----
-
-## 🆕 Recent Updates (Role-Based Access Control & UI Redesign)
-
-The platform has been heavily upgraded to support dynamic, **Role-Based Access Control (RBAC)** across both frontend and backend:
-
-* **Dynamic App Shell & Navigation**: The sidebar and dashboards adapt based on the user's role (`Cadet`, `Mentor`, `Admin`).
-* **Distinct Dashboards**: Introduced tailored views (`StudentDashboard`, `MentorDashboard`, `AdminDashboard`) containing role-specific metrics and tools.
-* **Component-Level Security**: Modals and pages (e.g., `CadetProfileModal`) auto-configure as read-only, evaluation-enabled, or fully managed depending on permissions.
-* **Route Guards**: Added `PermissionGuard` to protect frontend routes and a standard `AccessRestricted` (403) page for unauthorized attempts.
-* **Backend Scoping**: API endpoints dynamically restrict queries (e.g., Mentors only see their affiliated Cadets; Admins see all).
-* **Isolated Testing environment**: Enhanced `test_app.py` utilizing isolated `test_ncc.db` to prevent developer data conflicts, executing 10 passing comprehensive e2e tests.
-
----
-
-## 🛡️ Limitation Rules & Validation Matrix
-
-The platform enforces strict enterprise validation rules across all inputs:
-
-### 1. 🔒 Passkey & Security Rules
-- **Minimum 8 Characters** strictly enforced.
-- **Dynamic 4-Tier Strength Meter** (*Weak / Fair / Strong / Cyber-Grade Encrypted*).
-- Visual requirement checklist verifying numbers, upper-case, and lower-case combinations.
-
-### 2. 📱 Phone & Identification Rules
-- **Mobile Numbers**: Exactly 10 digits required; automatically strips non-numeric characters.
-- **Battalion Codes**: Formatted into uppercase alphanumeric symbols (e.g. `1CG-BN`, `10MAH-BN`).
-
-### 3. 🎖️ NCC Wing & Gender Matrix
-| NCC Wing | Eligible Gender Divisions | Rules |
-| :--- | :--- | :--- |
-| **Army Wing** | `SD` (Senior Division - Male), `SW` (Senior Wing - Female) | Enforces senior collegiate divisions |
-| **Navy Wing** | `SD` (Senior Division - Male), `SW` (Senior Wing - Female) | Enforces naval collegiate criteria |
-| **Air Wing** | `SD` (Senior Division - Male), `SW` (Senior Wing - Female) | Enforces aviation training requirements |
-
-### 4. 🎯 Evaluation Scoring Parameters
-- Mentors assess cadets on **9 official dimensions**:
-  1. *Drill & Precision*
-  2. *Physical Fitness*
-  3. *Weapon Firing & Handling*
-  4. *Command & Leadership*
-  5. *NCC & Military Knowledge*
-  6. *Discipline & Conduct*
-  7. *Parade Punctuality*
-  8. *Teamwork & Morale*
-  9. *Camp & Drill Attendance*
-- Scores are calibrated on an interactive **0.0 to 10.0 scale slider** with real-time decimal precision and assessment badges (*ALPHA*, *BRAVO*, *CHARLIE*, *DELTA*).
+| Variable | Required in Prod? | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | Yes | `http://127.0.0.1:8000/api/v1` | URL of backend API. Use `/api/v1` for production reverse proxies or Vercel. |
+| `VITE_SUPABASE_URL` | Optional | `""` | Supabase URL for client-side Google OAuth. |
+| `VITE_SUPABASE_ANON_KEY` | Optional | `""` | Supabase public anon key. |
 
 ---
 
-## ☁️ Cloud Deployment (Vercel)
+## 🗄️ Database Seeding & Starter Data
 
-The repository is pre-configured for instant **Serverless Deployment on Vercel** (`@vercel/python` + `@vercel/static-build`).
+CADET-360 includes automated baseline data for battalions, colleges, syllabus books, and evaluation criteria.
 
-### Vercel Project Settings
-- **Framework Preset**: `Other` (or `Vite`)
-- **Root Directory**: `./` (leave default root)
-- **Build Command**: `npm run build`
-- **Output Directory**: `frontend/dist`
-
-### Environment Variables (`.env`)
-Add the following keys in your Vercel Project Settings:
-
+To re-seed or initialize a clean database:
 ```bash
-# Database
-DATABASE_URL=postgresql://postgres.fmeudqnaezssadagvylc:Ncc2026Password!@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres
-
-# Security
-SECRET_KEY=local-dev-secret-key-ncc-battalion-system-2026
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-CORS_ORIGINS=*
-
-# Supabase
-SUPABASE_URL=https://fmeudqnaezssadagvylc.supabase.co
-SUPABASE_JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtZXVkcW5hZXpzc2FkYWd2eWxjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODgwNjA4NiwiZXhwIjoyMTA0MzgyMDg2fQ.Kq6J9dW3NO6ahVVnZ11sEEZ_vwUdjlMSbZ_srdRRXJY
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtZXVkcW5hZXpzc2FkYWd2eWxjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODgwNjA4NiwiZXhwIjoyMTA0MzgyMDg2fQ.Kq6J9dW3NO6ahVVnZ11sEEZ_vwUdjlMSbZ_srdRRXJY
-
-# Frontend Client
-VITE_SUPABASE_URL=https://fmeudqnaezssadagvylc.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtZXVkcW5hZXpzc2FkYWd2eWxjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODgwNjA4NiwiZXhwIjoyMTA0MzgyMDg2fQ.Kq6J9dW3NO6ahVVnZ11sEEZ_vwUdjlMSbZ_srdRRXJY
-VITE_API_BASE_URL=/api/v1
+python -m app.db.seed
 ```
 
+### Pre-Configured Seed Accounts
+
+| Role | Email | Password | Access Scope |
+| :--- | :--- | :--- | :--- |
+| **Commanding Officer (Admin)** | `admin@ncc.local` | `admin123` | Full Battalion HQ controls, Officer Analytics, System Config |
+| **Associate NCC Officer (Mentor)** | `mentor1@test.com` | `password123` | Institutional evaluation, muster rolls, question imports |
+| **Senior Division Cadet** | `cadet1@test.com` | `password123` | Personal dossier, parade attendance, mock exam arena |
+
+*(Note: Change all default passwords immediately after initial deployment).*
+
 ---
 
-## 🏛️ Project Architecture
+## 🏛️ Project Structure
 
 ```
 ncc-management/
 ├── api/
-│   └── index.py            # Vercel serverless Python gateway
+│   ├── index.py                    # Vercel serverless ASGI gateway adapter
+│   └── requirements.txt            # Vercel serverless dependency specification
 ├── app/
-│   ├── api/v1/             # Endpoints (auth, battalions, colleges, cadets, mentors, evaluations, leaderboard)
-│   ├── core/               # Direct bcrypt security, JWT, config settings, dependencies
-│   ├── db/                 # PostgreSQL pooler session & database auto-seeder
-│   ├── models/             # SQLAlchemy schemas (User, Cadet, Mentor, Battalion, College, Evaluation)
-│   ├── schemas/            # Pydantic data validation schemas
-│   └── services/           # Business logic & AI insight engine
+│   ├── api/
+│   │   └── v1/
+│   │       ├── ai_insights.py      # AI training regimen endpoints
+│   │       ├── auth.py             # Credentials and Supabase Google OAuth SSO
+│   │       ├── cadets.py           # Cadet registration, dossiers, and profiles
+│   │       ├── colleges.py         # Battalion and college management (Admin)
+│   │       ├── dashboard.py        # Executive KPI dashboard and leaderboard
+│   │       ├── evaluations.py      # 9-Pillar rubric evaluations and custom criteria
+│   │       ├── library.py          # NCC syllabus handbooks & study material CRUD
+│   │       ├── mentors.py          # ANO / Mentor registration and verification
+│   │       ├── ncc_mock_tests.py   # Mock exam sessions, psychometrics, CSV import
+│   │       ├── ops.py              # Parade attendance rolls and training tasks
+│   │       └── router.py           # Centralized API v1 router
+│   ├── core/
+│   │   ├── config.py               # Pydantic settings & production security gates
+│   │   ├── dependencies.py         # JWT auth, DB session, & RBAC dependencies
+│   │   └── security.py             # Direct bcrypt hashing & JWT token handling
+│   ├── db/
+│   │   ├── base.py                 # SQLAlchemy declarative base
+│   │   ├── seed.py                 # Master database seeder (executable CLI)
+│   │   └── session.py              # Resilient dual-engine (PostgreSQL + SQLite)
+│   ├── models/                     # SQLAlchemy ORM entity models (16 tables)
+│   ├── schemas/                    # Pydantic v2 validation models
+│   ├── services/                   # Business logic, psychometric algorithms, radar
+│   └── main.py                     # FastAPI application factory with lifespan handler
+├── data/                           # Authentic Raipur Group reference CSV datasets
 ├── frontend/
+│   ├── public/
+│   │   └── ncc-logo.png            # Official NCC emblem
 │   ├── src/
-│   │   ├── api/            # API client with auto-routing & smart error recovery
-│   │   ├── components/     # AppShell, PasswordStrengthMeter, TagGuide, ConfigBar, Form controls
-│   │   └── pages/          # Login, RegisterCadet, RegisterMentor, AdminHome, MentorHome, CadetHome, Leaderboard
-│   ├── index.html          # Military fonts & responsive container
-│   └── package.json        # Frontend build scripts
-├── dev.js                  # Multi-process Windows/Linux/macOS dev launcher
-├── package.json            # Root command scripts
-├── requirements.txt        # Backend dependencies (Python 3.10-3.12 compatible)
-├── vercel.json             # Serverless routing and static build mapping
-└── test_app.py             # End-to-end integration test suite
+│   │   ├── api/client.js           # Smart micro-caching API client & token sync
+│   │   ├── components/             # Reusable UI controls, modals, and design tokens
+│   │   ├── config/navigationConfig # Centralized role-based navigation mapping
+│   │   ├── context/AuthContext.jsx # Combined JWT + Google OAuth session provider
+│   │   ├── pages/                  # Workstation views (Dashboards, Mock Tests, Analytics)
+│   │   ├── App.jsx                 # Route definitions and security guards
+│   │   └── index.css               # Cyber-Command military design system
+│   ├── index.html                  # HTML entrypoint
+│   └── vite.config.js              # Vite bundling configuration
+├── dev.js                          # Node.js concurrent launcher for Windows/Mac/Linux
+├── docker-compose.yml              # Local multi-container Docker configuration
+├── Dockerfile                      # Production multi-stage Docker build
+├── package.json                    # Root scripts (`npm run dev`, `npm test`)
+├── requirements.txt                # Pinned production Python dependencies
+└── test_app.py                     # End-to-end integration test runner
 ```
 
 ---
 
-## 🧪 Integration Testing
+## 🔒 Role-Based Access Control (RBAC) Matrix
 
-Run the automated test suite across all services:
+| Feature / Endpoint | Cadet (`cadet`) | ANO / Mentor (`mentor`) | Admin / CO (`admin`) |
+| :--- | :---: | :---: | :---: |
+| **Personal Dashboard & Dossier** | Read Self | Read Assigned | Read All |
+| **Parade Attendance** | View Self (75% Gate) | Record & Mark Roll | Manage & Audit All |
+| **9-Pillar Military Evaluations** | View Self Ratings | Evaluate Cadets | Manage Rubric & Priorities |
+| **Certificate Mock Tests** | Take Exam & Review | Review Cadets | Audit All Scorecards |
+| **Psychometric Item Analysis** | ❌ Restricted | ✅ Full Access | ✅ Full Access |
+| **Question Bank Management** | ❌ Restricted | Import & Edit | Full CRUD & Reset |
+| **Battalion & College Creation** | ❌ Restricted | ❌ Restricted | ✅ Full Access |
+| **Mentor Account Verification** | ❌ Restricted | ❌ Restricted | ✅ Full Access |
+
+---
+
+## ⚠️ Common Errors & Troubleshooting
+
+### 1. Port 8000 or Port 5173 Already in Use
+- **Cause**: A previous server instance was not terminated cleanly.
+- **Fix**: Run `npm run dev`. The included [`dev.js`](file:///c:/Users/dayitva%20raj%20karsh/OneDrive/Desktop/New%20folder/ncc-management/dev.js) automatically terminates orphan process trees on ports 8000 and 5173 before launching. Alternatively:
+  ```powershell
+  # Windows PowerShell
+  Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000).OwningProcess -Force
+  ```
+
+### 2. Remote PostgreSQL Tenant Not Found / Connection Timeout
+- **Cause**: Supabase project is paused or connection pooler URL has an expired password.
+- **Resolution**: CADET-360 has built-in **zero-downtime fallback**. When remote PostgreSQL is unreachable, it logs a notice and immediately routes transactions through a local SQLite database (`ncc.db`), keeping local work completely uninterrupted. To reconnect to PostgreSQL, verify your `DATABASE_URL` in `.env`.
+
+### 3. Production Start Fails with "FATAL SECURITY CONFIGURATION"
+- **Cause**: `ENVIRONMENT=production` is set, but `SECRET_KEY` is still using the default development placeholder.
+- **Fix**: Generate a cryptographically secure random string and assign it in `.env`:
+  ```bash
+  python -c "import secrets; print(secrets.token_hex(32))"
+  ```
+
+### 4. CORS Error in Browser Console
+- **Cause**: The frontend URL is not listed in `CORS_ORIGINS`.
+- **Fix**: Add your frontend URL (e.g. `https://your-domain.com`) to `CORS_ORIGINS` in `.env`.
+
+---
+
+## 🧪 Running Automated Tests
+
+Run the complete test suite (both unit tests and end-to-end integration flow):
 
 ```bash
-pytest test_app.py
+# Run all pytest suites
+pytest tests/
+
+# Run end-to-end system verification flow
+python test_app.py
+
+# Or run everything via npm
+npm test
 ```
 
-### Verified Test Assertions:
-1. API `/health` liveness probe.
-2. Admin authentication & JWT token generation.
-3. Battalion & Affiliated College creation.
-4. Wing & Gender validation matrix enforcement.
-5. Mentor registration & Admin verification workflow.
-6. 9 seeded evaluation criteria & score submissions.
-7. Real-time PostgreSQL leaderboard aggregations without stale caching.
-8. AI performance regimen synthesis.
+### Verified Test Coverage:
+- ✅ Authentication, JWT generation, and password hashing
+- ✅ Supabase Google OAuth SSO auto-provisioning
+- ✅ Role-Based Access Control (RBAC) & IDOR prevention guards
+- ✅ Battalion & College administrative creation
+- ✅ Wing & Gender military validation matrix (SD, SW, JD, JW)
+- ✅ Mentor registration and Admin verification pipeline
+- ✅ 9-Pillar rubric scoring and focus priority updates
+- ✅ Mock examination scoring engine, answer key shielding, and timers
+- ✅ Officer exam analytics, cadet deep-dive diagnostic, and psychometrics
+- ✅ Syllabus books and handbooks library CRUD
+- ✅ Parade attendance muster rolls and qualification statistics
 
 ---
 
-## 📜 License & Acknowledgements
-Built for National Cadet Corps (NCC) battalion digital operations. Open-source under the MIT License.
+## 📜 License
+Built for the National Cadet Corps (NCC) digital transformation. Licensed under the [MIT License](LICENSE).
