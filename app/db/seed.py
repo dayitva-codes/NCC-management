@@ -935,3 +935,22 @@ def seed(db: Session) -> None:
         print(f"Study materials library seeding warning: {exc}")
 
 
+if __name__ == "__main__":
+    import sys
+    from app.db.session import SessionLocal, ensure_db_ready
+    print("\n=======================================================")
+    print("CADET-360: Running Standalone Database Seeder")
+    print("=======================================================")
+    ensure_db_ready()
+    db = SessionLocal()
+    try:
+        seed(db)
+        print("[SUCCESS] All battalions, colleges, syllabus books, and criteria seeded successfully.\n")
+    except Exception as e:
+        print(f"[ERROR] Database seeding failed: {e}\n")
+        sys.exit(1)
+    finally:
+        db.close()
+
+
+

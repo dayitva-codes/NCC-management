@@ -73,3 +73,10 @@ def health():
 # Mount routers for both /api/v1 and /v1 paths for flexible serverless rewrites
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/v1")
+
+# Serve static frontend SPA build if present (e.g. in Docker container or production)
+import os
+dist_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+if os.path.exists(dist_dir) and os.path.isdir(dist_dir):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="frontend-dist")
