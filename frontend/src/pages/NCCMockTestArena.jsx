@@ -12,7 +12,9 @@ import { RefreshingBuffer } from '../components/RefreshingBuffer';
  * - Server-authoritative timer countdown that auto-submits upon expiry.
  * - Progressive instant saving (each option click saves directly to DBMS).
  * - Interactive question palette (Answered, Flagged for Review, Not Visited).
- * - Keyboard navigation (1-4 for options, Arrow keys / 'n' / 'p' for next/previous).
+ * - Fully accessible keyboard navigation conforming to national online exam standards
+ *   (Keys 1-4 & A-D for options, Up/Down arrows, Space/Enter activation, Tab focus,
+ *    Arrow keys / 'N' / 'P' for question navigation, 'M'/'R' for review, 'X'/'Del' to clear).
  * - Full responsive layout adapting to desktop monitors, tablets, and phones.
  * ==============================================================================
  */
@@ -30,6 +32,10 @@ export default function NCCMockTestArena() {
   const [error, setError] = useState('');
   const [timeSpentPerQ, setTimeSpentPerQ] = useState({});
   const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
+  // References to option DOM elements for focus management and screen reader accessibility
+  const optionRefs = useRef([]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -69,21 +75,135 @@ export default function NCCMockTestArena() {
     return () => clearInterval(qInterval);
   }, [currentIndex, session]);
 
-  // Keyboard navigation shortcuts
+  // Keyboard navigation shortcuts conforming to traditional examination standards
   useEffect(() => {
     function handleKeyDown(e) {
-      if (['1', '2', '3', '4'].includes(e.key)) {
-        const optIdx = parseInt(e.key, 10) - 1;
-        handleSelectOption(optIdx);
-      } else if (e.key === 'ArrowRight' || e.key === 'n') {
+      // 1. Never intercept when user is typing in standard inputs or textareas
+      const targetTag = e.target?.tagName?.toLowerCase();
+      if (targetTag === 'input' || targetTag === 'textarea' || e.target?.isContentEditable) {
+        return;
+      }
+
+      // 2. Escape closes modals or mobile drawer
+      if (e.key === 'Escape') {
+        if (showShortcutsModal) {
+          setShowShortcutsModal(false);
+          return;
+        }
+        if (mobilePaletteOpen) {
+          setMobilePaletteOpen(false);
+          return;
+        }
+      }
+
+      // If shortcuts modal is open, ignore further shortcuts
+      if (showShortcutsModal) {
+        return;
+      }
+
+      // 3. Toggle keyboard shortcuts help with '?' or 'H'
+      if (e.key === '?' || (e.shiftKey && e.key === '/') || ((e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.altKey)) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+        return;
+      }
+
+      // 4. Submit exam keybinding: Alt + S or Ctrl + Enter
+      if ((e.altKey && (e.key === 's' || e.key === 'S')) || (e.ctrlKey && e.key === 'Enter')) {
+        e.preventDefault();
+        handleSubmitExam(false);
+        return;
+      }
+
+      if (!session || !session.questions || !session.questions[currentIndex]) {
+        return;
+      }
+
+      const q = session.questions[currentIndex];
+      const totalOptions = q.options?.length || 4;
+      const keyLower = e.key.toLowerCase();
+
+      // 5. Number keys: '1', '2', '3', '4' (standard row and numpad)
+      let numMatch = null;
+      if (/^[1-9]$/.test(e.key)) {
+        numMatch = parseInt(e.key, 10) - 1;
+      } else if (e.code && /^Numpad[1-9]$/.test(e.code)) {
+        numMatch = parseInt(e.code.replace('Numpad', ''), 10) - 1;
+      }
+
+      if (numMatch !== null && numMatch >= 0 && numMatch < totalOptions && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        handleSelectOption(numMatch);
+        if (optionRefs.current[numMatch]) {
+          optionRefs.current[numMatch].focus();
+        }
+        return;
+      }
+
+      // 6. Letter keys: 'A', 'B', 'C', 'D' (case-insensitive) for option selection
+      if (keyLower.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const letterIdx = keyLower.charCodeAt(0) - 97; // 'a' -> 0, 'b' -> 1, 'c' -> 2, 'd' -> 3
+        if (letterIdx >= 0 && letterIdx < totalOptions) {
+          e.preventDefault();
+          handleSelectOption(letterIdx);
+          if (optionRefs.current[letterIdx]) {
+            optionRefs.current[letterIdx].focus();
+          }
+          return;
+        }
+      }
+
+      // 7. Arrow Up & Arrow Down: Navigate & cycle through option choices
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleArrowOption(1);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleArrowOption(-1);
+        return;
+      }
+
+      // 8. Navigation: Next question (ArrowRight, 'N', or 'S' for Save & Next)
+      if (e.key === 'ArrowRight' || keyLower === 'n' || (!e.ctrlKey && !e.altKey && keyLower === 's')) {
+        e.preventDefault();
         handleNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'p') {
+        return;
+      }
+
+      // 9. Navigation: Previous question (ArrowLeft, 'P')
+      if (e.key === 'ArrowLeft' || keyLower === 'p') {
+        e.preventDefault();
         handlePrev();
+        return;
+      }
+
+      // 10. Review Flag: 'M', 'R', or 'F' (Mark / Review / Flag)
+      if (keyLower === 'm' || keyLower === 'r' || keyLower === 'f') {
+        e.preventDefault();
+        handleToggleReview();
+        return;
+      }
+
+      // 11. Clear selection: 'X', Backspace, Delete, or Alt + C
+      if (keyLower === 'x' || e.key === 'Backspace' || e.key === 'Delete' || (e.altKey && keyLower === 'c')) {
+        e.preventDefault();
+        handleClearOption();
+        return;
+      }
+
+      // 12. Toggle question palette: 'Q'
+      if (keyLower === 'q' && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setMobilePaletteOpen((prev) => !prev);
+        return;
       }
     }
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, session, answers]);
+  }, [currentIndex, session, answers, showShortcutsModal, mobilePaletteOpen]);
 
   async function loadArenaSession() {
     setError('');
@@ -106,12 +226,12 @@ export default function NCCMockTestArena() {
     await handleSubmitExam(true);
   }
 
-  async function handleSelectOption(optionIdx) {
-    if (!session || !session.questions[currentIndex]) return;
+  async function handleSelectOption(optionIdx, forceSelect = false) {
+    if (!session || !session.questions || !session.questions[currentIndex]) return;
     const q = session.questions[currentIndex];
     const currentAns = answers[q.id] || {};
 
-    const newOption = currentAns.selected_option === optionIdx ? null : optionIdx;
+    const newOption = (!forceSelect && currentAns.selected_option === optionIdx) ? null : optionIdx;
     const updated = {
       ...currentAns,
       selected_option: newOption,
@@ -121,8 +241,28 @@ export default function NCCMockTestArena() {
     await progressiveSave(q.id, newOption, updated.is_marked_for_review);
   }
 
+  function handleArrowOption(direction) {
+    if (!session || !session.questions || !session.questions[currentIndex]) return;
+    const q = session.questions[currentIndex];
+    const totalOptions = q.options?.length || 4;
+    const currentAns = answers[q.id] || {};
+    const currentOpt = currentAns.selected_option;
+
+    let nextOpt;
+    if (currentOpt == null) {
+      nextOpt = direction > 0 ? 0 : totalOptions - 1;
+    } else {
+      nextOpt = Math.max(0, Math.min(totalOptions - 1, currentOpt + direction));
+    }
+
+    handleSelectOption(nextOpt, true);
+    if (optionRefs.current[nextOpt]) {
+      optionRefs.current[nextOpt].focus();
+    }
+  }
+
   async function handleToggleReview() {
-    if (!session || !session.questions[currentIndex]) return;
+    if (!session || !session.questions || !session.questions[currentIndex]) return;
     const q = session.questions[currentIndex];
     const currentAns = answers[q.id] || {};
 
@@ -137,7 +277,7 @@ export default function NCCMockTestArena() {
   }
 
   async function handleClearOption() {
-    if (!session || !session.questions[currentIndex]) return;
+    if (!session || !session.questions || !session.questions[currentIndex]) return;
     const q = session.questions[currentIndex];
     const currentAns = answers[q.id] || {};
 
@@ -245,8 +385,8 @@ export default function NCCMockTestArena() {
           </div>
         </div>
 
-        {/* Sync Indicator & Countdown Timer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        {/* Sync Indicator, Shortcuts Guide Button & Countdown Timer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
               width: 8,
@@ -258,6 +398,16 @@ export default function NCCMockTestArena() {
               {saveStatus === 'synced' ? 'Synced ✓' : saveStatus === 'saving' ? 'Saving…' : 'Sync Warning'}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowShortcutsModal(true)}
+            className="ncc-shortcuts-btn"
+            title="View keyboard shortcuts (?)"
+            aria-label="View keyboard shortcuts"
+          >
+            <span>⌨️</span> Keybindings <kbd>?</kbd>
+          </button>
 
           <div style={{
             background: secondsLeft < 300 ? '#7f1d1d' : '#1e293b',
@@ -273,8 +423,10 @@ export default function NCCMockTestArena() {
           </div>
 
           <button
+            type="button"
             onClick={() => handleSubmitExam(false)}
             disabled={submitting}
+            title="Submit Exam (Alt + S)"
             style={{
               padding: '8px 18px',
               background: '#dc2626',
@@ -355,22 +507,29 @@ export default function NCCMockTestArena() {
             </div>
 
             {/* Question Statement */}
-            <div style={{
-              fontSize: 16,
-              fontWeight: 600,
-              lineHeight: 1.6,
-              color: 'var(--navy-900)',
-              marginBottom: 28,
-              padding: '16px 20px',
-              background: '#f8fafc',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0'
-            }}>
+            <div
+              id="ncc-question-statement"
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: 1.6,
+                color: 'var(--navy-900)',
+                marginBottom: 24,
+                padding: '16px 20px',
+                background: '#f8fafc',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
+              }}
+            >
               {currentQ.statement}
             </div>
 
-            {/* 4 Options Grid */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Options List with Full Accessibility & Traditional Exam Keybindings */}
+            <div
+              role="radiogroup"
+              aria-labelledby="ncc-question-statement"
+              className="ncc-arena-options-list"
+            >
               {currentQ.options.map((opt, optIdx) => {
                 const isSelected = qAns.selected_option === optIdx;
                 const letter = String.fromCharCode(65 + optIdx); // 'A', 'B', 'C', 'D'
@@ -378,35 +537,59 @@ export default function NCCMockTestArena() {
                 return (
                   <div
                     key={optIdx}
+                    ref={(el) => (optionRefs.current[optIdx] = el)}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`Option ${letter}: ${opt}`}
+                    tabIndex={0}
                     onClick={() => handleSelectOption(optIdx)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 14,
-                      padding: '14px 18px',
-                      borderRadius: 8,
-                      border: isSelected ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                      background: isSelected ? '#eff6ff' : '#fff',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSelectOption(optIdx);
+                      } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        handleArrowOption(1);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        handleArrowOption(-1);
+                      }
                     }}
+                    className={`ncc-arena-option ${isSelected ? 'selected' : ''}`}
                   >
-                    <div style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 6,
-                      background: isSelected ? '#2563eb' : '#f1f5f9',
-                      color: isSelected ? '#fff' : '#475569',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: 13
-                    }}>
-                      {letter}
+                    <div className="ncc-arena-option-main">
+                      {/* Accessible Radio Circle Indicator */}
+                      <div
+                        className={`ncc-arena-radio-circle ${isSelected ? 'selected' : ''}`}
+                        aria-hidden="true"
+                      >
+                        {isSelected && <span className="ncc-arena-radio-inner-dot" />}
+                      </div>
+
+                      {/* Option Letter Badge (A, B, C, D) */}
+                      <div className={`ncc-arena-letter-badge ${isSelected ? 'selected' : ''}`}>
+                        {letter}
+                      </div>
+
+                      {/* Option Text Statement */}
+                      <div className="ncc-arena-option-text">
+                        {opt}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 14, color: isSelected ? '#1e3a8a' : '#1e293b', fontWeight: isSelected ? 600 : 400 }}>
-                      {opt}
+
+                    {/* Keybinding shortcut hint pills */}
+                    <div className="ncc-arena-key-hints" aria-hidden="true">
+                      {isSelected ? (
+                        <span className="ncc-selected-pill">
+                          ✓ Selected
+                        </span>
+                      ) : (
+                        <>
+                          <kbd className="ncc-key-pill">{letter}</kbd>
+                          <span style={{ color: '#cbd5e1', fontSize: 10 }}>/</span>
+                          <kbd className="ncc-key-pill">{optIdx + 1}</kbd>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -429,6 +612,7 @@ export default function NCCMockTestArena() {
               <button
                 type="button"
                 onClick={handleToggleReview}
+                title="Mark for review (Shortcut: M)"
                 style={{
                   padding: '8px 14px',
                   borderRadius: 6,
@@ -437,16 +621,21 @@ export default function NCCMockTestArena() {
                   color: qAns.is_marked_for_review ? '#6b21a8' : '#475569',
                   fontSize: 12,
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                {qAns.is_marked_for_review ? '★ Marked for Review' : '☆ Mark for Review'}
+                <span>{qAns.is_marked_for_review ? '★ Marked for Review' : '☆ Mark for Review'}</span>
+                <kbd className="ncc-key-pill" style={{ fontSize: 10, padding: '1px 5px' }}>M</kbd>
               </button>
 
               {qAns.selected_option != null && (
                 <button
                   type="button"
                   onClick={handleClearOption}
+                  title="Clear option (Shortcut: X or Del)"
                   style={{
                     padding: '8px 14px',
                     borderRadius: 6,
@@ -454,10 +643,15 @@ export default function NCCMockTestArena() {
                     background: '#f8fafc',
                     color: '#64748b',
                     fontSize: 12,
-                    cursor: 'pointer'
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                 >
-                  Clear Selection
+                  <span>Clear Selection</span>
+                  <kbd className="ncc-key-pill" style={{ fontSize: 10, padding: '1px 5px' }}>X</kbd>
                 </button>
               )}
             </div>
@@ -467,6 +661,7 @@ export default function NCCMockTestArena() {
                 type="button"
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
+                title="Previous question (Shortcut: P or ←)"
                 style={{
                   padding: '8px 18px',
                   borderRadius: 6,
@@ -474,16 +669,22 @@ export default function NCCMockTestArena() {
                   background: currentIndex === 0 ? '#f1f5f9' : '#fff',
                   color: currentIndex === 0 ? '#94a3b8' : '#1e293b',
                   fontWeight: 600,
-                  cursor: currentIndex === 0 ? 'not-allowed' : 'pointer'
+                  fontSize: 13,
+                  cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                ← Previous
+                <span>← Previous</span>
+                <kbd className="ncc-key-pill" style={{ fontSize: 10, padding: '1px 5px' }}>P</kbd>
               </button>
 
               <button
                 type="button"
                 onClick={handleNext}
                 disabled={currentIndex === session.questions.length - 1}
+                title="Next question (Shortcut: N or →)"
                 style={{
                   padding: '8px 22px',
                   borderRadius: 6,
@@ -491,10 +692,15 @@ export default function NCCMockTestArena() {
                   background: 'var(--navy-900)',
                   color: '#fff',
                   fontWeight: 700,
-                  cursor: currentIndex === session.questions.length - 1 ? 'not-allowed' : 'pointer'
+                  fontSize: 13,
+                  cursor: currentIndex === session.questions.length - 1 ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                Next Question →
+                <span>Next Question →</span>
+                <kbd className="ncc-key-pill" style={{ fontSize: 10, padding: '1px 5px', background: '#1e3a8a', color: '#93c5fd', borderColor: '#3b82f6' }}>N</kbd>
               </button>
             </div>
           </div>
@@ -537,7 +743,7 @@ export default function NCCMockTestArena() {
               display: 'grid',
               gridTemplateColumns: 'repeat(5, 1fr)',
               gap: 8,
-              maxHeight: 'calc(100vh - 350px)',
+              maxHeight: 'calc(100vh - 380px)',
               overflowY: 'auto',
               padding: 4
             }}>
@@ -572,6 +778,8 @@ export default function NCCMockTestArena() {
                 return (
                   <button
                     key={q.id}
+                    type="button"
+                    aria-label={`Go to question ${idx + 1}`}
                     onClick={() => {
                       setCurrentIndex(idx);
                       setMobilePaletteOpen(false);
@@ -595,15 +803,200 @@ export default function NCCMockTestArena() {
             </div>
           </div>
 
-          {/* Quick Keyboard Help */}
-          <div style={{ fontSize: 11, color: '#94a3b8', background: '#fff', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-            <div><strong>Keyboard Shortcuts:</strong></div>
-            <div>• Keys <code>1-4</code>: Select Option A-D</div>
-            <div>• Keys <code>N / →</code>: Next Question</div>
-            <div>• Keys <code>P / ←</code>: Previous Question</div>
+          {/* Quick Keybindings Reference Card */}
+          <div style={{
+            fontSize: 11,
+            background: '#ffffff',
+            padding: 12,
+            borderRadius: 8,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            marginTop: 14
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <strong style={{ color: 'var(--navy-900)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                ⌨️ Keybindings
+              </strong>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#2563eb',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                All Keys [?]
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#475569', fontSize: 11 }}>
+              <div>• <kbd className="ncc-key-pill">A-D</kbd> or <kbd className="ncc-key-pill">1-4</kbd> : Select Option</div>
+              <div>• <kbd className="ncc-key-pill">↑</kbd> <kbd className="ncc-key-pill">↓</kbd> : Move between options</div>
+              <div>• <kbd className="ncc-key-pill">Space</kbd> / <kbd className="ncc-key-pill">↵</kbd> : Confirm choice</div>
+              <div>• <kbd className="ncc-key-pill">N</kbd> / <kbd className="ncc-key-pill">→</kbd> : Next Question</div>
+              <div>• <kbd className="ncc-key-pill">P</kbd> / <kbd className="ncc-key-pill">←</kbd> : Prev Question</div>
+              <div>• <kbd className="ncc-key-pill">M</kbd> : Review | <kbd className="ncc-key-pill">X</kbd> : Clear</div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Accessible Keyboard Shortcuts Guide Modal */}
+      {showShortcutsModal && (
+        <div
+          className="ncc-modal-overlay"
+          onClick={() => setShowShortcutsModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ncc-shortcuts-title"
+        >
+          <div
+            className="ncc-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#0a192f',
+              color: '#fff',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20 }}>⌨️</span>
+                <div>
+                  <h3 id="ncc-shortcuts-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#f8fafc' }}>
+                    Examination Terminal Keybindings
+                  </h3>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    Full keyboard accessibility & traditional online exam shortcuts
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                aria-label="Close shortcuts guide"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: 6,
+                  width: 30,
+                  height: 30,
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Section 1: Option Selection */}
+              <div>
+                <h4 style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--navy-900)', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🎯</span> Option Selection
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: 8, fontSize: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div><kbd className="ncc-key-pill">A</kbd> <kbd className="ncc-key-pill">B</kbd> <kbd className="ncc-key-pill">C</kbd> <kbd className="ncc-key-pill">D</kbd></div>
+                  <div>Directly choose Option A, B, C, or D</div>
+
+                  <div><kbd className="ncc-key-pill">1</kbd> <kbd className="ncc-key-pill">2</kbd> <kbd className="ncc-key-pill">3</kbd> <kbd className="ncc-key-pill">4</kbd></div>
+                  <div>Select options by number (Top row & Numpad)</div>
+
+                  <div><kbd className="ncc-key-pill">↑</kbd> <kbd className="ncc-key-pill">↓</kbd> (Up / Down)</div>
+                  <div>Cycle & navigate through options</div>
+
+                  <div><kbd className="ncc-key-pill">Tab</kbd> / <kbd className="ncc-key-pill">Shift+Tab</kbd></div>
+                  <div>Move keyboard focus between options & buttons</div>
+
+                  <div><kbd className="ncc-key-pill">Space</kbd> or <kbd className="ncc-key-pill">Enter</kbd></div>
+                  <div>Select the currently focused option</div>
+
+                  <div><kbd className="ncc-key-pill">X</kbd> or <kbd className="ncc-key-pill">Del</kbd> / <kbd className="ncc-key-pill">Backspace</kbd></div>
+                  <div>Clear response for the active question</div>
+                </div>
+              </div>
+
+              {/* Section 2: Question Navigation */}
+              <div>
+                <h4 style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--navy-900)', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🧭</span> Question Navigation
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: 8, fontSize: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div><kbd className="ncc-key-pill">N</kbd> or <kbd className="ncc-key-pill">→</kbd> (Right)</div>
+                  <div>Advance to Next Question</div>
+
+                  <div><kbd className="ncc-key-pill">P</kbd> or <kbd className="ncc-key-pill">←</kbd> (Left)</div>
+                  <div>Go back to Previous Question</div>
+
+                  <div><kbd className="ncc-key-pill">S</kbd> (Save & Next)</div>
+                  <div>Save response & proceed forward</div>
+
+                  <div><kbd className="ncc-key-pill">Q</kbd></div>
+                  <div>Toggle Question Palette drawer / view</div>
+                </div>
+              </div>
+
+              {/* Section 3: Review & Submission */}
+              <div>
+                <h4 style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--navy-900)', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>⭐</span> Review & Submission
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: 8, fontSize: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div><kbd className="ncc-key-pill">M</kbd> or <kbd className="ncc-key-pill">R</kbd> / <kbd className="ncc-key-pill">F</kbd></div>
+                  <div>Toggle Mark for Review flag</div>
+
+                  <div><kbd className="ncc-key-pill">?</kbd> or <kbd className="ncc-key-pill">H</kbd></div>
+                  <div>Open / close this Keybindings Guide</div>
+
+                  <div><kbd className="ncc-key-pill">Alt + S</kbd> / <kbd className="ncc-key-pill">Ctrl+Enter</kbd></div>
+                  <div>Finalize & Submit Examination Paper</div>
+
+                  <div><kbd className="ncc-key-pill">Esc</kbd></div>
+                  <div>Close modal or palette drawer</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '14px 24px',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              borderRadius: '0 0 12px 12px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                style={{
+                  padding: '8px 20px',
+                  background: 'var(--navy-900)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer'
+                }}
+              >
+                Got it, Return to Exam (Esc)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
